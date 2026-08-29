@@ -1,0 +1,168 @@
+// Shared site data ported from resources/js/app.js
+
+export type Lang = "en" | "th";
+
+export const translations: Record<Lang, Record<string, string>> = {
+  en: {
+    marquee_welcome: "Welcome to Thai Mango — Enjoy 15% off your first order",
+    shop_now: "Shop Now",
+    menu: "Menu",
+    hero_title_1: "THAI",
+    hero_title_2: "MANGO",
+    hero_desc:
+      "Where orchard tradition meets modern craft. Discover naturally sun-dried mango, hand-selected in Thailand for timeless tropical sweetness.",
+    shop_products: "Shop Products",
+    skin_consultation: "Talk to Us",
+    the_selection: "THE SELECTION",
+    discover_more: "Discover More",
+    shop_by_category: "SHOP BY CATEGORY",
+    category_serums: "Spiced & Zesty",
+    category_sunscreen: "Fusion Blends",
+    category_mango: "Classic Cuts",
+    join_circle_title: "Enter the Inner Circle",
+    join_circle_desc:
+      "Receive snacking rituals, new launches and exclusive offers directly in your inbox.",
+    join_circle_btn: "Join the Circle",
+    search_placeholder: "Search products, recipes, ingredients...",
+    your_bag: "Your Bag",
+    subtotal: "Subtotal",
+    checkout: "Checkout",
+    add_to_cart: "Add to Bag",
+    quick_view: "Quick View",
+    footer_brand_desc: "Sun-ripened in Thailand, sun-dried the traditional way.",
+    footer_shop: "Shop",
+    footer_discover: "Discover",
+    footer_help: "Help & Policies",
+    shipping_calc: "Shipping & taxes calculated at checkout.",
+    nav_01: "Home",
+    nav_02: "Shop",
+    nav_03: "Our Story",
+    nav_04: "Ingredients",
+    nav_05: "Rituals",
+    nav_06: "FAQ",
+    nav_07: "Contact",
+  },
+  th: {
+    marquee_welcome:
+      "ยินดีต้อนรับสู่ Thai Mango — รับส่วนลด 15% สำหรับการสั่งซื้อครั้งแรก",
+    shop_now: "ช้อปเลย",
+    menu: "เมนู",
+    hero_title_1: "THAI",
+    hero_title_2: "MANGO",
+    hero_desc:
+      "ที่ซึ่งภูมิปัญญาแห่งสวนมะม่วงผสานงานฝีมือสมัยใหม่ เพื่อความหวานเหนือกาลเวลา",
+    shop_products: "เลือกซื้อสินค้า",
+    skin_consultation: "ติดต่อเรา",
+    the_selection: "สินค้าแนะนำพิเศษ",
+    discover_more: "ดูเพิ่มเติม",
+    shop_by_category: "เลือกซื้อตามหมวดหมู่",
+    category_serums: "รสเผ็ดจี๊ดจ๊าด",
+    category_sunscreen: "สูตรผสมพิเศษ",
+    category_mango: "มะม่วงแท้คลาสสิก",
+    join_circle_title: "เข้าร่วมคอมมูนิตี้สุดพิเศษ",
+    join_circle_desc:
+      "รับเคล็ดลับการกินมะม่วงและข้อเสนอสุดพิเศษส่งตรงถึงคุณก่อนใคร",
+    join_circle_btn: "สมัครรับข่าวสาร",
+    search_placeholder: "ค้นหาสินค้า สูตรอาหาร ส่วนผสม...",
+    your_bag: "ตะกร้าสินค้าของคุณ",
+    subtotal: "ยอดรวมย่อย",
+    checkout: "ดำเนินการชำระเงิน",
+    add_to_cart: "เพิ่มลงตะกร้า",
+    quick_view: "ดูตัวอย่างด่วน",
+    footer_brand_desc: "ตากแดดในไทย ตากแห้งแบบดั้งเดิม",
+    footer_shop: "ช้อปปิ้ง",
+    footer_discover: "ค้นพบ",
+    footer_help: "ช่วยเหลือและนโยบาย",
+    shipping_calc: "Shipping & taxes calculated at checkout.",
+    nav_01: "หน้าแรก",
+    nav_02: "ร้านค้า",
+    nav_03: "เรื่องราวของเรา",
+    nav_04: "ส่วนผสมสำคัญ",
+    nav_05: "สูตรและเคล็ดลับ",
+    nav_06: "คำถามที่พบบ่อย",
+    nav_07: "ติดต่อเรา",
+  },
+};
+
+export interface SearchEntry {
+  title: string;
+  category: string;
+  price: string;
+  url: string;
+  img: string;
+  tags: string[];
+}
+
+export const siteSearchDatabase: SearchEntry[] = [
+  { title: "Thai Mango Classic Sun-Dried Strips", category: "Classic Cuts", price: "₹390", url: "/product-detail", img: "/images/bangkok-mango-beetroot-1.png", tags: ["classic", "mango", "natural", "no sugar added", "chewy"] },
+  { title: "Thai Mango Chili Lime Bites", category: "Spiced & Zesty", price: "₹430", url: "/product-detail", img: "/images/bangkok-mango-beetroot-1.png", tags: ["chili", "lime", "spicy", "zesty", "mango"] },
+  { title: "Thai Mango Honey Glazed Slices", category: "Glazed & Sweet", price: "₹450", url: "/product-detail", img: "/images/bangkok-mango-beetroot-1.png", tags: ["honey", "glazed", "sweet", "soft", "mango"] },
+  { title: "Thai Mango Beetroot Fusion Chews", category: "Fusion Blends", price: "₹410", url: "/product-detail", img: "/images/bangkok-mango-beetroot-2.png", tags: ["beetroot", "fusion", "antioxidant", "mango", "chewy"] },
+  { title: "Thai Mango Discovery Gift Box", category: "Gift Sets", price: "₹1,450", url: "/shop", img: "/images/bangkok-mango-beetroot-2.png", tags: ["gift", "box", "variety", "mango", "bundle"] },
+  { title: "Our Orchard Story & Heritage", category: "Story", price: "Brand Heritage", url: "/about", img: "/images/logo.png", tags: ["story", "about", "founder", "heritage", "history", "thailand"] },
+  { title: "100% Thai Natural Ingredients", category: "Ingredients", price: "Ingredient List", url: "/ingredients", img: "/images/logo.png", tags: ["ingredients", "natural", "mango", "chili", "honey", "beetroot"] },
+  { title: "Mango Rituals & Recipe Guide", category: "Guide", price: "Recipe Edits", url: "/rituals", img: "/images/logo.png", tags: ["rituals", "guide", "recipes", "sticky rice", "pairings", "snacking"] },
+  { title: "Frequently Asked Questions", category: "Support", price: "FAQ Help", url: "/faq", img: "/images/logo.png", tags: ["faq", "questions", "shipping", "returns", "cod", "payment", "shelf life"] },
+  { title: "Concierge & Customer Care", category: "Contact", price: "Get in Touch", url: "/contact", img: "/images/logo.png", tags: ["contact", "support", "help", "email", "phone", "location", "bulk", "wholesale"] },
+  { title: "Member Sanctuary & Dashboard", category: "Account", price: "Customer Portal", url: "/dashboard", img: "/images/logo.png", tags: ["account", "dashboard", "orders", "profile", "rewards", "points", "addresses"] },
+  { title: "Sign In / Member Login", category: "Account", price: "Access Account", url: "/login", img: "/images/logo.png", tags: ["login", "signin", "auth", "password", "sign in"] },
+  { title: "Join Inner Circle / Register", category: "Account", price: "15% Welcome Bonus", url: "/register", img: "/images/logo.png", tags: ["register", "signup", "create account", "join", "sign up"] },
+];
+
+export const menuPromoData = {
+  shop: {
+    img: "/images/bangkok-mango-beetroot-2.png",
+    tag: "New Arrivals",
+    title: "Discover our newest mango creations.",
+    btn: "Shop Now",
+    url: "/shop",
+  },
+  guides: {
+    img: "/images/menu-guides-promo.jpg",
+    tag: "Rituals & Journal",
+    title: "Explore mindful wellness & herbal recipes.",
+    btn: "Read Journal",
+    url: "/rituals",
+  },
+  consultations: {
+    img: "/images/menu-consult-promo.jpg",
+    tag: "Skin & Health Experts",
+    title: "Personalized skin advice tailored for you.",
+    btn: "Book Consultation",
+    url: "/contact",
+  },
+} as const;
+
+export type MenuTab = keyof typeof menuPromoData;
+
+export const formatPrice = (price: number) =>
+  `₹${Number(price).toLocaleString("en-IN")}`;
+
+export const FREE_SHIPPING_THRESHOLD = 1500;
+export const STANDARD_SHIPPING = 99;
+
+export interface AuthUser {
+  isLoggedIn: boolean;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  skinType?: string;
+  tier?: string;
+  points?: number;
+  memberSince?: string;
+}
+
+export const defaultDemoUser: AuthUser = {
+  isLoggedIn: true,
+  firstName: "Aarav",
+  lastName: "Sharma",
+  name: "Aarav Sharma",
+  email: "aarav@example.com",
+  phone: "+91 98765 43210",
+  skinType: "Sweet & Classic",
+  tier: "Gold Member",
+  points: 480,
+  memberSince: "2026",
+};
