@@ -8,6 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   AuthUser,
   Lang,
@@ -69,6 +70,7 @@ interface StoreValue {
   user: AuthUser | null;
   setUser: (u: AuthUser | null) => void;
   logout: () => void;
+  authLoading: boolean;
   /* ui */
   cartOpen: boolean;
   openCart: () => void;
@@ -88,17 +90,6 @@ interface StoreValue {
 
 const StoreContext = createContext<StoreValue | null>(null);
 
-/* The original app.js seeds the bag with one demo item on first visit */
-const DEFAULT_CART: CartItem[] = [
-  {
-    name: "Thai Mango Beetroot Fusion Chews",
-    price: 410,
-    image: "/images/bangkok-mango-beetroot-1.png",
-    quantity: 1,
-    size: "100g",
-  },
-];
-
 /* legacy image paths saved by the static site used relative "images/…" */
 const normalizeImg = (src: string) =>
   src && !src.startsWith("/") && !src.startsWith("http") ? `/${src}` : src;
@@ -109,6 +100,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [user, setUserState] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -124,26 +116,58 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const savedCart = localStorage.getItem("bm_cart");
       const parsed = savedCart ? (JSON.parse(savedCart) as CartItem[]) : null;
-      setCart(
-        parsed && Array.isArray(parsed)
-          ? parsed.map((i) => ({ ...i, image: normalizeImg(i.image) }))
-          : DEFAULT_CART
-      );
-    } catch {
-      setCart(DEFAULT_CART);
-    }
+      if (parsed && Array.isArray(parsed)) {
+        setCart(parsed.map((i) => ({ ...i, image: normalizeImg(i.image) })));
+      }
+    } catch {}
     try {
       const savedWish = localStorage.getItem("bm_wishlist");
       if (savedWish) setWishlist(JSON.parse(savedWish));
-    } catch {}
-    try {
-      const session = localStorage.getItem("thaimango_auth_session");
-      if (session) setUserState(JSON.parse(session));
     } catch {}
     const savedLang = localStorage.getItem("preferred_language");
     if (savedLang === "th" || savedLang === "en") setLangState(savedLang);
     setMounted(true);
   }, []);
+
+  /* hydrate the real session from the httpOnly cookie via the API */
+  const meQuery = useQuery({
+    queryKey: ["me"],
+    queryFn: async () => {
+      const res = await fetch("/api/me");
+      if (!res.ok) return null;
+      const body = await res.json();
+      return body.data as {
+        id: string;
+        name: string;
+        email: string;
+        phone: string;
+        flavor_preference: string[];
+        created_at: string;
+      };
+    },
+    retry: false,
+    staleTime: Infinity,
+  });
+
+  useEffect(() => {
+    if (meQuery.isPending) return;
+    const u = meQuery.data;
+    if (u) {
+      const [firstName, ...rest] = u.name.split(" ");
+      setUserState({
+        isLoggedIn: true,
+        id: u.id,
+        firstName,
+        lastName: rest.join(" "),
+        name: u.name,
+        email: u.email,
+        phone: u.phone,
+        skinType: u.flavor_preference?.[0],
+        memberSince: new Date(u.created_at).getFullYear().toString(),
+      });
+    }
+    setAuthLoading(false);
+  }, [meQuery.isPending, meQuery.data]);
 
   /* persist */
   useEffect(() => {
@@ -285,15 +309,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   /* auth */
   const setUser = useCallback((u: AuthUser | null) => {
     setUserState(u);
-    if (u) {
-      localStorage.setItem("thaimango_auth_session", JSON.stringify(u));
-    } else {
-      localStorage.removeItem("thaimango_auth_session");
-    }
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem("thaimango_auth_session");
+  const logout = useCallback(async () => {
+    try {
+      await fetch("/api/logout", { method: "POST" });
+    } catch {}
     setUserState(null);
     showToast("Signed out of your account");
     setTimeout(() => {
@@ -351,6 +372,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         user,
         setUser,
         logout,
+        authLoading,
         cartOpen,
         openCart,
         closeCart,

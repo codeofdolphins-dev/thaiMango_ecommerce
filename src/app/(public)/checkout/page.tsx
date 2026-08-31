@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronRight,
   Lock,
@@ -17,9 +17,60 @@ import {
   FREE_SHIPPING_THRESHOLD,
   STANDARD_SHIPPING,
 } from "@/lib/site-data";
+import StripeCardForm, {
+  type CardPayFn,
+} from "@/components/public/StripeCardForm";
 
 type ShippingMethod = "standard" | "priority";
 type PaymentMethod = "upi" | "card" | "netbanking" | "cod";
+
+/* ── Razorpay Checkout (loaded on demand from checkout.razorpay.com) ── */
+
+interface RazorpayHandlerResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  order_id: string;
+  name: string;
+  description?: string;
+  prefill?: { name?: string; email?: string; contact?: string };
+  theme?: { color?: string };
+  handler: (response: RazorpayHandlerResponse) => void;
+  modal?: { ondismiss?: () => void };
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => { open: () => void };
+  }
+}
+
+const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const existing = document.querySelector(
+      `script[src="${RAZORPAY_SCRIPT_SRC}"]`
+    );
+    if (existing) {
+      existing.addEventListener("load", () => resolve(true));
+      existing.addEventListener("error", () => resolve(false));
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = RAZORPAY_SCRIPT_SRC;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 const PAYMENT_TABS: { id: PaymentMethod; label: string }[] = [
   { id: "upi", label: "UPI & QR" },
@@ -31,7 +82,7 @@ const PAYMENT_TABS: { id: PaymentMethod; label: string }[] = [
 export default function CheckoutPage() {
   const { cart, subtotal, user, clearCart, showToast, mounted } = useStore();
 
-  const cartItems = mounted ? cart : [];
+  const cartItems = useMemo(() => (mounted ? cart : []), [mounted, cart]);
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -88,30 +139,158 @@ export default function CheckoutPage() {
   );
   const gstAmount = Math.round(subtotal * 0.18);
 
-  const completeCheckoutSimulation = () => {
-    const newOrderId = `#TM-${new Date().getFullYear()}-${Math.floor(
-      10000 + Math.random() * 90000
-    )}`;
-    setOrderId(newOrderId);
-    clearCart();
-    setShowSuccessModal(true);
-    showToast(`Order Placed! Reference: ${newOrderId}`);
-    setIsSubmitting(false);
+  /* On a real payment the gateway's payment id becomes the order reference;
+     COD falls back to a locally generated one. */
+  const completeCheckout = useCallback(
+    (reference?: string) => {
+      const newOrderId =
+        reference ??
+        `#TM-${new Date().getFullYear()}-${Math.floor(
+          10000 + Math.random() * 90000
+        )}`;
+      setOrderId(newOrderId);
+      clearCart();
+      setShowSuccessModal(true);
+      showToast(`Order Placed! Reference: ${newOrderId}`);
+      setIsSubmitting(false);
+    },
+    [clearCart, showToast]
+  );
+
+  const cardPayRef = useRef<CardPayFn | null>(null);
+  const registerCardPay = useCallback((fn: CardPayFn | null) => {
+    cardPayRef.current = fn;
+  }, []);
+
+  const customerName = `${firstName} ${lastName}`.trim();
+
+  const buildPayload = useCallback(
+    () => ({
+      items: cartItems.map((item) => ({
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        size: item.size,
+      })),
+      shippingMethod,
+      couponDiscount,
+      customer: {
+        name: customerName || undefined,
+        email: email || undefined,
+        phone: phone || undefined,
+      },
+    }),
+    [cartItems, shippingMethod, couponDiscount, customerName, email, phone]
+  );
+
+  const payWithRazorpay = async () => {
+    setIsSubmitting(true);
+    try {
+      const loaded = await loadRazorpayScript();
+      if (!loaded || !window.Razorpay) {
+        showToast("Could not load Razorpay. Check your connection.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const res = await fetch("/api/payments/razorpay/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildPayload()),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.data?.orderId) {
+        showToast(data?.message || "Could not initiate payment.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const { orderId: rzpOrderId, amount, currency, keyId } = data.data;
+      const razorpay = new window.Razorpay({
+        key: keyId,
+        amount,
+        currency,
+        order_id: rzpOrderId,
+        name: "Thai Mango",
+        description: "Sun-dried mango order",
+        prefill: {
+          name: customerName || undefined,
+          email: email || undefined,
+          contact: phone || undefined,
+        },
+        theme: { color: "#7A1233" },
+        handler: async (response) => {
+          try {
+            const verifyRes = await fetch("/api/payments/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(response),
+            });
+            if (verifyRes.ok) {
+              completeCheckout(response.razorpay_payment_id);
+            } else {
+              showToast("Payment verification failed. Contact support.");
+              setIsSubmitting(false);
+            }
+          } catch {
+            showToast("Payment verification failed. Contact support.");
+            setIsSubmitting(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            showToast("Payment cancelled.");
+            setIsSubmitting(false);
+          },
+        },
+      });
+      razorpay.open();
+    } catch {
+      showToast("Could not start the payment. Please try again.");
+      setIsSubmitting(false);
+    }
   };
 
   const handleExpressPay = (provider: string) => {
-    showToast(`Connecting to ${provider}...`);
-    setTimeout(() => {
-      completeCheckoutSimulation();
-    }, 800);
+    if (cartItems.length === 0) {
+      showToast("Your bag is empty.");
+      return;
+    }
+    showToast(`Opening Razorpay for ${provider}...`);
+    void payWithRazorpay();
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setTimeout(() => {
-      completeCheckoutSimulation();
-    }, 1000);
+    if (cartItems.length === 0) {
+      showToast("Your bag is empty.");
+      return;
+    }
+
+    if (selectedPayment === "cod") {
+      setIsSubmitting(true);
+      setTimeout(() => completeCheckout(), 800);
+      return;
+    }
+
+    if (selectedPayment === "card") {
+      if (!cardPayRef.current) {
+        showToast("The card form is still loading — one moment.");
+        return;
+      }
+      setIsSubmitting(true);
+      const result = await cardPayRef.current();
+      if (result.ok) {
+        completeCheckout(result.reference);
+      } else {
+        showToast(result.error || "Card payment failed.");
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    /* UPI & Net Banking both route through Razorpay Checkout. */
+    await payWithRazorpay();
   };
 
   return (
@@ -450,27 +629,13 @@ export default function CheckoutPage() {
                     }`}
                   >
                     <div className="p-4 rounded-2xl bg-cream/40 border border-cream">
-                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-2">
-                        Instant UPI Virtual Payment Address (VPA)
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          id="upi-vpa"
-                          placeholder="username@okhdfcbank"
-                          className="flex-1 px-4 py-3 rounded-xl border border-cream bg-white text-sm focus:outline-none focus:border-accent"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => showToast("UPI ID Verified")}
-                          className="px-5 py-3 bg-charcoal text-white rounded-xl text-xs uppercase tracking-wider font-bold hover:bg-accent transition shadow-sm"
-                        >
-                          Verify
-                        </button>
-                      </div>
-                      <p className="text-[11px] text-muted mt-2">
-                        Open Google Pay, PhonePe, Paytm, or BHIM after clicking
-                        Complete Order.
+                      <p className="text-xs font-semibold text-charcoal mb-1">
+                        Pay with any UPI app via Razorpay
+                      </p>
+                      <p className="text-[11px] text-muted leading-relaxed">
+                        Google Pay, PhonePe, Paytm, BHIM, or any UPI ID / QR
+                        scan. Clicking Complete Order opens the secure Razorpay
+                        window to finish the payment.
                       </p>
                     </div>
                   </div>
@@ -481,65 +646,17 @@ export default function CheckoutPage() {
                       selectedPayment === "card" ? "" : "hidden"
                     }`}
                   >
-                    <div>
-                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
-                        Card Number *
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          id="card-num"
-                          placeholder="4111 2222 3333 4444"
-                          maxLength={19}
-                          className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
-                        />
-                        <div className="absolute right-3 top-3 flex gap-1">
-                          <span className="text-[10px] font-bold text-accent">
-                            VISA
-                          </span>
-                          <span className="text-[10px] font-bold text-charcoal">
-                            MC
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
-                          Expiry (MM/YY) *
-                        </label>
-                        <input
-                          type="text"
-                          id="card-exp"
-                          placeholder="12/28"
-                          maxLength={5}
-                          className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
-                          CVV / CVC *
-                        </label>
-                        <input
-                          type="password"
-                          id="card-cvv"
-                          placeholder="•••"
-                          maxLength={4}
-                          className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
-                        Name on Card *
-                      </label>
-                      <input
-                        type="text"
-                        id="card-name"
-                        placeholder="Aarav Sharma"
-                        className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
+                    {selectedPayment === "card" && (
+                      <StripeCardForm
+                        amountPaise={Math.round(total * 100)}
+                        buildPayload={buildPayload}
+                        registerPay={registerCardPay}
                       />
-                    </div>
+                    )}
+                    <p className="text-[11px] text-muted">
+                      Cards are processed securely by Stripe — details never
+                      touch our servers.
+                    </p>
                   </div>
 
                   {/* Net Banking Content */}
@@ -548,21 +665,16 @@ export default function CheckoutPage() {
                       selectedPayment === "netbanking" ? "" : "hidden"
                     }`}
                   >
-                    <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
-                      Select Bank
-                    </label>
-                    <select
-                      id="bank-select"
-                      defaultValue="HDFC"
-                      className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
-                    >
-                      <option value="HDFC">HDFC Bank</option>
-                      <option value="ICICI">ICICI Bank</option>
-                      <option value="SBI">State Bank of India (SBI)</option>
-                      <option value="Axis">Axis Bank</option>
-                      <option value="Kotak">Kotak Mahindra Bank</option>
-                      <option value="Other">Other Major Indian Banks</option>
-                    </select>
+                    <div className="p-4 rounded-2xl bg-cream/40 border border-cream">
+                      <p className="text-xs font-semibold text-charcoal mb-1">
+                        Net Banking via Razorpay
+                      </p>
+                      <p className="text-[11px] text-muted leading-relaxed">
+                        HDFC, ICICI, SBI, Axis, Kotak and all major Indian
+                        banks are supported. You&apos;ll pick your bank in the
+                        secure Razorpay window after clicking Complete Order.
+                      </p>
+                    </div>
                   </div>
 
                   {/* Cash on Delivery Content */}

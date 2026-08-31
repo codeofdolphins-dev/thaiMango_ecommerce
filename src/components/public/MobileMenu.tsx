@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { InstagramIcon } from "./BrandIcons";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { menuPromoData, MenuTab } from "@/lib/site-data";
 import { useStore } from "./store";
 
@@ -32,55 +33,21 @@ interface PromoContent {
   url: string;
 }
 
-/* In-house product categories — must match the shop page's data-filter values */
-const SHOP_CATEGORIES: {
-  label: string;
-  href: string;
-  Icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  { label: "CLASSIC CUTS", href: "/shop?category=Classic+Cuts", Icon: Sun },
-  { label: "SPICED & ZESTY", href: "/shop?category=Spiced+%26+Zesty", Icon: Flame },
-  { label: "GLAZED & SWEET", href: "/shop?category=Glazed+%26+Sweet", Icon: Droplet },
-  { label: "FUSION BLENDS", href: "/shop?category=Fusion+Blends", Icon: Sparkles },
-  { label: "GIFT SETS", href: "/shop?category=Gift+Sets", Icon: Gift },
+interface PublicCategory {
+  id: number;
+  slug: string;
+  name_en: string;
+}
+
+/* Icon pool cycled across however many categories exist in the catalog */
+const CATEGORY_ICONS = [Sun, Flame, Droplet, Sparkles, Gift];
+
+const CATEGORY_PROMO_IMAGES = [
+  "/images/bangkok-mango-beetroot-1.png",
+  "/images/bangkok-mango-beetroot-2.png",
 ];
 
 const subitemPromoData: Record<string, PromoContent> = {
-  "/shop?category=Classic+Cuts": {
-    img: "/images/bangkok-mango-beetroot-1.png",
-    tag: "Classic Cuts",
-    title: "Naturally sun-dried strips, nothing added.",
-    btn: "Shop Classic Cuts",
-    url: "/shop?category=Classic+Cuts",
-  },
-  "/shop?category=Spiced+%26+Zesty": {
-    img: "/images/bangkok-mango-beetroot-1.png",
-    tag: "Spiced & Zesty",
-    title: "Thai chili, lime & a bright tropical kick.",
-    btn: "Shop Spiced & Zesty",
-    url: "/shop?category=Spiced+%26+Zesty",
-  },
-  "/shop?category=Glazed+%26+Sweet": {
-    img: "/images/bangkok-mango-beetroot-1.png",
-    tag: "Glazed & Sweet",
-    title: "Honey-kissed slices, soft and indulgent.",
-    btn: "Shop Glazed & Sweet",
-    url: "/shop?category=Glazed+%26+Sweet",
-  },
-  "/shop?category=Fusion+Blends": {
-    img: "/images/bangkok-mango-beetroot-2.png",
-    tag: "Fusion Blends",
-    title: "Mango meets beetroot & bold botanicals.",
-    btn: "Shop Fusion Blends",
-    url: "/shop?category=Fusion+Blends",
-  },
-  "/shop?category=Gift+Sets": {
-    img: "/images/bangkok-mango-beetroot-2.png",
-    tag: "Gift Sets",
-    title: "Curated discovery boxes made for gifting.",
-    btn: "Shop Gift Sets",
-    url: "/shop?category=Gift+Sets",
-  },
   "/shop": {
     img: "/images/bangkok-mango-beetroot-2.png",
     tag: "All Products",
@@ -143,6 +110,30 @@ export default function MobileMenu() {
   const [activeTab, setActiveTab] = useState<MenuTab>("shop");
   const [promo, setPromo] = useState<PromoContent>(menuPromoData.shop);
   const [linksActive, setLinksActive] = useState(false);
+
+  const categoriesQuery = useQuery({
+    queryKey: ["categories"],
+    queryFn: async (): Promise<PublicCategory[]> => {
+      const res = await fetch("/api/categories");
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message || "Failed to load categories");
+      return body.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const shopCategories = (categoriesQuery.data ?? []).map((c, i) => ({
+    name: c.name_en,
+    href: `/shop?category=${encodeURIComponent(c.slug)}`,
+    Icon: CATEGORY_ICONS[i % CATEGORY_ICONS.length],
+    promo: {
+      img: CATEGORY_PROMO_IMAGES[i % CATEGORY_PROMO_IMAGES.length],
+      tag: c.name_en,
+      title: `Explore our ${c.name_en} collection.`,
+      btn: `Shop ${c.name_en}`,
+      url: `/shop?category=${encodeURIComponent(c.slug)}`,
+    } satisfies PromoContent,
+  }));
 
   useEffect(() => {
     if (menuOpen) {
@@ -340,23 +331,29 @@ export default function MobileMenu() {
               activeTab === "shop" ? "flex" : "hidden"
             } flex-col gap-5 md:gap-6`}
           >
-            {SHOP_CATEGORIES.map(({ label, href, Icon }, i) => (
-              <Link
-                key={href}
-                href={href}
-                className={linkCls()}
-                style={{ transitionDelay: `${150 + i * 50}ms` }}
-                onClick={closeMenu}
-                onMouseEnter={() => hoverPromo(href)}
-              >
-                <span className="contents">
-                  <span className={subIconBox}>
-                    <Icon className="w-5 h-5" />
+            {categoriesQuery.isPending ? (
+              <span className="text-xs text-muted uppercase tracking-widest py-2">
+                Loading categories…
+              </span>
+            ) : (
+              shopCategories.map(({ name, href, Icon, promo: catPromo }, i) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={linkCls()}
+                  style={{ transitionDelay: `${150 + i * 50}ms` }}
+                  onClick={closeMenu}
+                  onMouseEnter={() => setPromo(catPromo)}
+                >
+                  <span className="contents">
+                    <span className={subIconBox}>
+                      <Icon className="w-5 h-5" />
+                    </span>
+                    <span className={subLabel}>{name.toUpperCase()}</span>
                   </span>
-                  <span className={subLabel}>{label}</span>
-                </span>
-              </Link>
-            ))}
+                </Link>
+              ))
+            )}
 
             <Link
               href="/shop"
@@ -522,7 +519,7 @@ export default function MobileMenu() {
             <ul className="space-y-2.5 text-xs sm:text-sm">
               <li>
                 <Link
-                  href="/shop?category=Bestsellers"
+                  href="/shop"
                   className="text-[#334155] hover:text-[#F29F86] transition"
                   onClick={closeMenu}
                 >

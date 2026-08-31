@@ -84,30 +84,8 @@ export const translations: Record<Lang, Record<string, string>> = {
   },
 };
 
-export interface SearchEntry {
-  title: string;
-  category: string;
-  price: string;
-  url: string;
-  img: string;
-  tags: string[];
-}
-
-export const siteSearchDatabase: SearchEntry[] = [
-  { title: "Thai Mango Classic Sun-Dried Strips", category: "Classic Cuts", price: "₹390", url: "/product-detail", img: "/images/bangkok-mango-beetroot-1.png", tags: ["classic", "mango", "natural", "no sugar added", "chewy"] },
-  { title: "Thai Mango Chili Lime Bites", category: "Spiced & Zesty", price: "₹430", url: "/product-detail", img: "/images/bangkok-mango-beetroot-1.png", tags: ["chili", "lime", "spicy", "zesty", "mango"] },
-  { title: "Thai Mango Honey Glazed Slices", category: "Glazed & Sweet", price: "₹450", url: "/product-detail", img: "/images/bangkok-mango-beetroot-1.png", tags: ["honey", "glazed", "sweet", "soft", "mango"] },
-  { title: "Thai Mango Beetroot Fusion Chews", category: "Fusion Blends", price: "₹410", url: "/product-detail", img: "/images/bangkok-mango-beetroot-2.png", tags: ["beetroot", "fusion", "antioxidant", "mango", "chewy"] },
-  { title: "Thai Mango Discovery Gift Box", category: "Gift Sets", price: "₹1,450", url: "/shop", img: "/images/bangkok-mango-beetroot-2.png", tags: ["gift", "box", "variety", "mango", "bundle"] },
-  { title: "Our Orchard Story & Heritage", category: "Story", price: "Brand Heritage", url: "/about", img: "/images/logo.png", tags: ["story", "about", "founder", "heritage", "history", "thailand"] },
-  { title: "100% Thai Natural Ingredients", category: "Ingredients", price: "Ingredient List", url: "/ingredients", img: "/images/logo.png", tags: ["ingredients", "natural", "mango", "chili", "honey", "beetroot"] },
-  { title: "Mango Rituals & Recipe Guide", category: "Guide", price: "Recipe Edits", url: "/rituals", img: "/images/logo.png", tags: ["rituals", "guide", "recipes", "sticky rice", "pairings", "snacking"] },
-  { title: "Frequently Asked Questions", category: "Support", price: "FAQ Help", url: "/faq", img: "/images/logo.png", tags: ["faq", "questions", "shipping", "returns", "cod", "payment", "shelf life"] },
-  { title: "Concierge & Customer Care", category: "Contact", price: "Get in Touch", url: "/contact", img: "/images/logo.png", tags: ["contact", "support", "help", "email", "phone", "location", "bulk", "wholesale"] },
-  { title: "Member Sanctuary & Dashboard", category: "Account", price: "Customer Portal", url: "/dashboard", img: "/images/logo.png", tags: ["account", "dashboard", "orders", "profile", "rewards", "points", "addresses"] },
-  { title: "Sign In / Member Login", category: "Account", price: "Access Account", url: "/login", img: "/images/logo.png", tags: ["login", "signin", "auth", "password", "sign in"] },
-  { title: "Join Inner Circle / Register", category: "Account", price: "15% Welcome Bonus", url: "/register", img: "/images/logo.png", tags: ["register", "signup", "create account", "join", "sign up"] },
-];
+/* Site search now queries /api/products live; static content-page entries live
+   in SearchOverlay.tsx. */
 
 export const menuPromoData = {
   shop: {
@@ -143,6 +121,7 @@ export const STANDARD_SHIPPING = 99;
 
 export interface AuthUser {
   isLoggedIn: boolean;
+  id?: string;
   firstName?: string;
   lastName?: string;
   name?: string;
@@ -153,16 +132,3 @@ export interface AuthUser {
   points?: number;
   memberSince?: string;
 }
-
-export const defaultDemoUser: AuthUser = {
-  isLoggedIn: true,
-  firstName: "Aarav",
-  lastName: "Sharma",
-  name: "Aarav Sharma",
-  email: "aarav@example.com",
-  phone: "+91 98765 43210",
-  skinType: "Sweet & Classic",
-  tier: "Gold Member",
-  points: 480,
-  memberSince: "2026",
-};

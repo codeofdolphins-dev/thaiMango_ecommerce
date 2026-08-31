@@ -2,6 +2,7 @@
 
 import { Bell, PanelLeft, Search } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import AdminSidebar from "./AdminSidebar";
 
 export default function AdminShell({
@@ -11,6 +12,16 @@ export default function AdminShell({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  const meQuery = useQuery({
+    queryKey: ["me"],
+    queryFn: async (): Promise<{ name: string; email: string; role: string } | null> => {
+      const res = await fetch("/api/me");
+      if (!res.ok) return null;
+      return (await res.json()).data;
+    },
+    staleTime: Infinity,
+  });
 
   return (
     <div className="min-h-screen flex bg-[#F5F4F1]">
@@ -60,18 +71,14 @@ export default function AdminShell({
             <div className="flex items-center gap-3">
               <div className="text-right leading-tight hidden sm:block">
                 <span className="block text-xs font-bold tracking-wide text-ink uppercase">
-                  Admin
+                  {meQuery.data?.name ?? "…"}
                 </span>
                 <span className="block text-[10px] tracking-[0.15em] uppercase text-peach font-semibold">
-                  Verified Sanctuary Lead
+                  {meQuery.data ? "Administrator" : ""}
                 </span>
               </div>
-              <div className="w-10 h-10 rounded-full bg-peach-soft ring-1 ring-peach/40 flex items-center justify-center shrink-0">
-                <img
-                  src="/images/logo.png"
-                  alt="Admin"
-                  className="w-7 h-7 object-contain rounded-full"
-                />
+              <div className="w-10 h-10 rounded-full bg-peach-soft ring-1 ring-peach/40 flex items-center justify-center shrink-0 text-peach font-bold text-sm">
+                {(meQuery.data?.name?.[0] ?? "A").toUpperCase()}
               </div>
             </div>
           </div>

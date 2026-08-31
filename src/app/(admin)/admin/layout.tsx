@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import AdminShell from "@/components/admin/AdminShell";
+import AdminGuard from "@/components/admin/AdminGuard";
+import Providers from "@/components/public/Providers";
 
 export const metadata: Metadata = {
   title: "Thai Mango — Admin Portal",
@@ -11,5 +13,11 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <AdminShell>{children}</AdminShell>;
+  return (
+    <Providers>
+      <AdminGuard>
+        <AdminShell>{children}</AdminShell>
+      </AdminGuard>
+    </Providers>
+  );
 }

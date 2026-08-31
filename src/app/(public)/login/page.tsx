@@ -3,74 +3,85 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, Eye, EyeOff, Mail, Sparkles } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Mail } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+import { z } from "zod";
 import { useStore } from "@/components/public/store";
-import { defaultDemoUser } from "@/lib/site-data";
+import { loginSchema } from "@/schemas/login.schema";
+
+type LoginValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
   const { setUser, showToast } = useStore();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleDemoLogin = () => {
-    setEmail(defaultDemoUser.email || "");
-    setPassword("mango123");
-    showToast("Demo credentials autofilled");
-    setTimeout(() => {
-      setUser(defaultDemoUser);
-      showToast("Welcome back, Aarav!");
-      router.push("/dashboard");
-    }, 600);
-  };
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+  });
 
-  const handleLoginSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const emailValue = email.trim() || defaultDemoUser.email || "";
-    const user = {
-      ...defaultDemoUser,
-      email: emailValue,
-      name: emailValue.split("@")[0].replace(".", " ").toUpperCase(),
-      firstName: emailValue.split("@")[0],
-    };
-    setUser(user);
-    showToast("Sign in successful! Entering Sanctuary...");
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 600);
-  };
+  const loginMutation = useMutation({
+    mutationFn: async (values: LoginValues) => {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          body.errors?.[0] || body.message || "Something went wrong. Please try again."
+        );
+      }
+      return body.data as {
+        id: string;
+        name: string;
+        email: string;
+        phone: string;
+        role: string;
+        flavor_preference: string[];
+        created_at: string;
+      };
+    },
+    onSuccess: (data) => {
+      const [firstName, ...rest] = data.name.split(" ");
+      setUser({
+        isLoggedIn: true,
+        id: data.id,
+        firstName,
+        lastName: rest.join(" "),
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        skinType: data.flavor_preference?.[0],
+        memberSince: new Date(data.created_at).getFullYear().toString(),
+      });
+      showToast(`Welcome back, ${firstName}!`);
+      setTimeout(() => {
+        router.push(data.role === "ADMIN" ? "/admin/dashboard" : "/dashboard");
+      }, 600);
+    },
+    onError: (error: Error) => {
+      showToast(error.message);
+    },
+  });
+
+  const onSubmit = (values: LoginValues) => loginMutation.mutate(values);
 
   const handleSocialLogin = (provider: "Google" | "Facebook") => {
-    showToast(`Connecting with ${provider}...`);
-    setTimeout(() => {
-      const socialUser = {
-        isLoggedIn: true,
-        firstName: provider === "Google" ? "Aarav" : "Maya",
-        lastName: provider === "Google" ? "Sharma" : "Verma",
-        name: provider === "Google" ? "Aarav Sharma" : "Maya Verma",
-        email:
-          provider === "Google"
-            ? "aarav.sharma@gmail.com"
-            : "maya.verma@facebook.com",
-        phone: "+91 98765 43210",
-        skinType: "Combination",
-        tier: "Gold Member",
-        points: 620,
-        memberSince: "2026",
-      };
-      setUser(socialUser);
-      showToast(`Signed in with ${provider}! Welcome, ${socialUser.firstName}.`);
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 600);
-    }, 500);
+    showToast(`${provider} sign-in isn't available yet.`);
   };
 
   const handleForgotPassword = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    showToast("Password reset link sent to your email.");
+    showToast("Password reset isn't available yet.");
   };
 
   return (
@@ -142,33 +153,8 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Demo Login Quick Autofill Card */}
-          <div className="mb-6 p-4 rounded-2xl bg-cream/50 border border-cream flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#E5B869]/20 text-accent flex items-center justify-center shrink-0">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="text-xs font-bold text-charcoal block">
-                  Instant Demo Access
-                </span>
-                <span className="text-[11px] text-muted">
-                  Test the dashboard with one click
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              id="demo-login-btn"
-              onClick={handleDemoLogin}
-              className="px-4 py-2 bg-charcoal text-white text-[11px] uppercase tracking-wider font-bold rounded-full hover:bg-accent transition shrink-0 shadow-sm"
-            >
-              Demo Login
-            </button>
-          </div>
-
           {/* Login Form */}
-          <form id="login-form" className="space-y-5" onSubmit={handleLoginSubmit}>
+          <form id="login-form" className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
             <div>
               <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1.5">
                 Email Address
@@ -177,14 +163,15 @@ export default function LoginPage() {
                 <input
                   type="email"
                   id="login-email"
-                  required
                   placeholder="aarav@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  {...register("email")}
                   className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
                 />
                 <Mail className="w-4 h-4 text-muted absolute right-4 top-1/2 -translate-y-1/2" />
               </div>
+              {errors.email && (
+                <p className="text-[11px] text-rose-600 mt-1">{errors.email.message}</p>
+              )}
             </div>
 
             <div>
@@ -205,10 +192,8 @@ export default function LoginPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   id="login-password"
-                  required
                   placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  {...register("password")}
                   className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
                 />
                 <button
@@ -242,9 +227,10 @@ export default function LoginPage() {
             <button
               type="submit"
               id="submit-login"
-              className="w-full py-4 bg-charcoal text-white rounded-full text-xs uppercase tracking-widest font-bold hover:bg-accent transition-all duration-300 shadow-md flex items-center justify-center gap-2 group"
+              disabled={loginMutation.isPending}
+              className="w-full py-4 bg-charcoal text-white rounded-full text-xs uppercase tracking-widest font-bold hover:bg-accent transition-all duration-300 shadow-md flex items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <span>Sign In to Thai Mango</span>
+              <span>{loginMutation.isPending ? "Signing In..." : "Sign In to Thai Mango"}</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </form>

@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { ArrowRight } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+import { z } from "zod";
 import { useStore } from "@/components/public/store";
+import { signUpSchema } from "@/schemas/signup.schema";
+
+type SignUpValues = z.infer<typeof signUpSchema>;
 
 const SKIN_TYPES = ["Classic", "Spicy", "Sweet & Glazed", "Fusion"] as const;
 const SKIN_TYPE_TITLES: Record<(typeof SKIN_TYPES)[number], string> = {
@@ -18,71 +24,58 @@ export default function RegisterPage() {
   const router = useRouter();
   const { setUser, showToast } = useStore();
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [selectedSkinType, setSelectedSkinType] =
-    useState<(typeof SKIN_TYPES)[number]>("Classic");
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<SignUpValues>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: { choice: "Classic" },
+  });
+  const selectedSkinType = watch("choice");
 
-  const handleRegisterSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (password !== confirmPassword) {
-      showToast("Passwords do not match. Please check.");
-      return;
-    }
-
-    const first = firstName.trim() || "Valued";
-    const last = lastName.trim() || "Member";
-    const emailValue = email.trim() || "member@thaimango.com";
-    const phoneValue = phone.trim() || "+91 98765 43210";
-
-    const newUser = {
-      isLoggedIn: true,
-      firstName: first,
-      lastName: last,
-      name: `${first} ${last}`,
-      email: emailValue,
-      phone: phoneValue,
-      skinType: selectedSkinType,
-      tier: "Gold Member",
-      points: 580,
-      memberSince: "2026",
-    };
-
-    setUser(newUser);
-    showToast("Welcome to the Thai Mango Circle! Claimed 15% discount.");
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 600);
-  };
-
-  const handleSocialLogin = (provider: "Google" | "Facebook") => {
-    showToast(`Connecting with ${provider}...`);
-    setTimeout(() => {
-      const socialUser = {
+  const signUpMutation = useMutation({
+    mutationFn: async (values: SignUpValues) => {
+      const res = await fetch("/api/sign-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          body.errors?.[0] || body.message || "Something went wrong. Please try again."
+        );
+      }
+      return body.data as { id: string; name: string; email: string; phone: string };
+    },
+    onSuccess: (data, values) => {
+      setUser({
         isLoggedIn: true,
-        firstName: provider === "Google" ? "Aarav" : "Maya",
-        lastName: provider === "Google" ? "Sharma" : "Verma",
-        name: provider === "Google" ? "Aarav Sharma" : "Maya Verma",
-        email:
-          provider === "Google"
-            ? "aarav.sharma@gmail.com"
-            : "maya.verma@facebook.com",
-        phone: "+91 98765 43210",
-        skinType: "Combination",
-        tier: "Gold Member",
-        points: 620,
-        memberSince: "2026",
-      };
-      setUser(socialUser);
-      showToast(`Signed in with ${provider}! Welcome, ${socialUser.firstName}.`);
+        id: data.id,
+        firstName: values.f_name,
+        lastName: values.l_name,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        skinType: values.choice,
+      });
+      showToast("Welcome to the Thai Mango Circle! Claimed 15% discount.");
       setTimeout(() => {
         router.push("/dashboard");
       }, 600);
-    }, 500);
+    },
+    onError: (error: Error) => {
+      showToast(error.message);
+    },
+  });
+
+  const onSubmit = (values: SignUpValues) => signUpMutation.mutate(values);
+
+  const handleSocialLogin = (provider: "Google" | "Facebook") => {
+    showToast(`${provider} sign-up isn't available yet.`);
   };
 
   return (
@@ -145,7 +138,7 @@ export default function RegisterPage() {
           </div>
 
           {/* Register Form */}
-          <form id="register-form" className="space-y-4" onSubmit={handleRegisterSubmit}>
+          <form id="register-form" className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
@@ -154,12 +147,13 @@ export default function RegisterPage() {
                 <input
                   type="text"
                   id="reg-firstname"
-                  required
                   placeholder="Aarav"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  {...register("f_name")}
                   className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
                 />
+                {errors.f_name && (
+                  <p className="text-[11px] text-rose-600 mt-1">{errors.f_name.message}</p>
+                )}
               </div>
               <div>
                 <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
@@ -168,12 +162,13 @@ export default function RegisterPage() {
                 <input
                   type="text"
                   id="reg-lastname"
-                  required
                   placeholder="Sharma"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  {...register("l_name")}
                   className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
                 />
+                {errors.l_name && (
+                  <p className="text-[11px] text-rose-600 mt-1">{errors.l_name.message}</p>
+                )}
               </div>
             </div>
 
@@ -185,12 +180,13 @@ export default function RegisterPage() {
                 <input
                   type="email"
                   id="reg-email"
-                  required
                   placeholder="aarav@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  {...register("email")}
                   className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
                 />
+                {errors.email && (
+                  <p className="text-[11px] text-rose-600 mt-1">{errors.email.message}</p>
+                )}
               </div>
               <div>
                 <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
@@ -199,12 +195,13 @@ export default function RegisterPage() {
                 <input
                   type="tel"
                   id="reg-phone"
-                  required
                   placeholder="+91 98765 43210"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  {...register("ph_no")}
                   className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
                 />
+                {errors.ph_no && (
+                  <p className="text-[11px] text-rose-600 mt-1">{errors.ph_no.message}</p>
+                )}
               </div>
             </div>
 
@@ -227,7 +224,7 @@ export default function RegisterPage() {
                       }
                       data-type={type}
                       title={SKIN_TYPE_TITLES[type]}
-                      onClick={() => setSelectedSkinType(type)}
+                      onClick={() => setValue("choice", type)}
                     >
                       {type}
                     </button>
@@ -244,13 +241,13 @@ export default function RegisterPage() {
                 <input
                   type="password"
                   id="reg-password"
-                  required
                   placeholder="Minimum 8 characters"
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  {...register("password")}
                   className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
                 />
+                {errors.password && (
+                  <p className="text-[11px] text-rose-600 mt-1">{errors.password.message}</p>
+                )}
               </div>
               <div>
                 <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
@@ -259,13 +256,15 @@ export default function RegisterPage() {
                 <input
                   type="password"
                   id="reg-confirm-password"
-                  required
                   placeholder="Re-enter password"
-                  minLength={6}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  {...register("confirm_password")}
                   className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
                 />
+                {errors.confirm_password && (
+                  <p className="text-[11px] text-rose-600 mt-1">
+                    {errors.confirm_password.message}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -295,9 +294,14 @@ export default function RegisterPage() {
             <button
               type="submit"
               id="submit-register"
-              className="w-full py-4 bg-charcoal text-white rounded-full text-xs uppercase tracking-widest font-bold hover:bg-accent transition-all duration-300 shadow-md flex items-center justify-center gap-2 group mt-4"
+              disabled={signUpMutation.isPending}
+              className="w-full py-4 bg-charcoal text-white rounded-full text-xs uppercase tracking-widest font-bold hover:bg-accent transition-all duration-300 shadow-md flex items-center justify-center gap-2 group mt-4 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <span>Create Account &amp; Claim 15% Off</span>
+              <span>
+                {signUpMutation.isPending
+                  ? "Creating Account..."
+                  : "Create Account & Claim 15% Off"}
+              </span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </form>

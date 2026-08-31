@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -12,9 +7,208 @@ datasource db {
   provider = "postgresql"
 }
 
+/**
+ * ───────── Users ─────────
+ */
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
 model User {
-  id    String @id @default(uuid())
-  email String @unique
-  password_hash String
-  
+  id                String      @id @default(uuid())
+  email             String      @unique
+  password_hash     String
+  name              String
+  phone             String
+  role              Role        @default(CUSTOMER)
+  flavor_preference String[]
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+  addresses         addresses[]
+  orders            Order[]
+  reviews           Review[]
+}
+
+model addresses {
+  id         Int     @id @default(autoincrement())
+  user_id    String
+  line1      String
+  city       String
+  state      String
+  pincode    String
+  is_default Boolean
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+}
+
+/**
+ * ───────── Catalog ─────────
+ */
+
+enum ProductStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
+}
+
+model Categories {
+  id      Int    @id @default(autoincrement())
+  slug    String @unique
+  name_en String
+  name_th String
+  cat_id  Int?
+
+  category   Categories?  @relation("CategoryToSubcategories", fields: [cat_id], references: [id])
+  categories Categories[] @relation("CategoryToSubcategories")
+  products   Product[]
+}
+
+model Product {
+  id             String        @id @default(uuid())
+  slug           String        @unique
+  category_id    Int
+  name_en        String
+  name_th        String
+  description_en String
+  description_th String
+  images         String[]
+  tags           String[]      @default([])
+  highlights     String[]      @default([])
+  how_its_made   String?
+  storage_info   String?
+  ingredients    String?
+  status         ProductStatus @default(DRAFT)
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+
+  category       Categories       @relation(fields: [category_id], references: [id])
+  productVariant ProductVariant[]
+  orderItems     OrderItem[]
+  reviews        Review[]
+
+  @@index([category_id])
+  @@index([status])
+}
+
+model ProductVariant {
+  id               Int     @id @default(autoincrement())
+  product_id       String  @unique
+  label            String
+  weight_grams     Int
+  sku              String  @unique
+  price            Decimal @db.Decimal(10, 2)
+  compare_at_price Decimal @db.Decimal(10, 2)
+  stock            Int     @default(0)
+  is_default       Boolean @default(false)
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([product_id])
+}
+
+/**
+ * ───────── Orders ─────────
+ */
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  PREPAID
+  COD
+}
+
+model Order {
+  id         String        @id @default(uuid())
+  order_no   Int           @unique @default(autoincrement())
+  user_id    String
+  status     OrderStatus   @default(PENDING)
+  payment    PaymentMethod @default(PREPAID)
+  total      Decimal       @db.Decimal(10, 2)
+  created_at DateTime      @default(now())
+  updated_at DateTime      @updatedAt
+
+  user  User        @relation(fields: [user_id], references: [id])
+  items OrderItem[]
+
+  @@index([user_id])
+  @@index([status])
+}
+
+model OrderItem {
+  id         Int     @id @default(autoincrement())
+  order_id   String
+  product_id String?
+  name       String
+  price      Decimal @db.Decimal(10, 2)
+  quantity   Int
+
+  order   Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [product_id], references: [id], onDelete: SetNull)
+
+  @@index([order_id])
+}
+
+/**
+ * ───────── Reviews ─────────
+ */
+
+enum ReviewStatus {
+  PENDING
+  PUBLISHED
+}
+
+model Review {
+  id         Int          @id @default(autoincrement())
+  product_id String
+  user_id    String
+  rating     Int
+  text       String
+  status     ReviewStatus @default(PENDING)
+  created_at DateTime     @default(now())
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([product_id])
+  @@index([status])
+}
+
+/**
+ * ───────── Promotions & Content ─────────
+ */
+
+model Coupon {
+  id           Int      @id @default(autoincrement())
+  code         String   @unique
+  description  String
+  discount_pct Int
+  used         Int      @default(0)
+  usage_limit  Int
+  expires_at   DateTime
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+}
+
+model SiteContent {
+  id         String   @id
+  section    String
+  location   String
+  content    String
+  updated_at DateTime @updatedAt
+}
+
+model StoreSettings {
+  id         Int      @id @default(1)
+  data       Json
+  updated_at DateTime @updatedAt
 }

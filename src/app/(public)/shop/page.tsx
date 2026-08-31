@@ -3,160 +3,38 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Eye } from "lucide-react";
 import { useStore } from "@/components/public/store";
 
-interface Badge {
-  text: string;
-  className: string;
+interface ApiVariant {
+  label: string;
+  weight_grams: number;
+  price: string;
+  compare_at_price: string;
 }
 
-interface Product {
-  id: number;
-  category: string;
-  image: string;
-  alt: string;
-  badges: Badge[];
-  weight: string;
-  name: string;
-  desc: string;
-  price: number;
-  priceDisplay: string;
-  comparePrice?: string;
+interface ApiProduct {
+  id: string;
+  slug: string;
+  name_en: string;
+  description_en: string;
+  images: string[];
+  highlights: string[];
+  category: { slug: string; name_en: string };
+  productVariant: ApiVariant | null;
 }
 
-const PRODUCTS: Product[] = [
-  {
-    id: 1,
-    category: "Classic Cuts",
-    image: "/images/bangkok-mango-beetroot-1.png",
-    alt: "Thai Mango Classic Sun-Dried Strips",
-    badges: [
-      {
-        text: "Best Seller",
-        className:
-          "bg-[#F29F86] text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm",
-      },
-      {
-        text: "No Sugar Added",
-        className:
-          "bg-charcoal text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm",
-      },
-    ],
-    weight: "100G Pouch",
-    name: "Thai Mango Classic Sun-Dried Strips",
-    desc: "Naturally sun-dried Thai mango strips with no sugar added — just soft, chewy, sun-ripened sweetness.",
-    price: 390,
-    priceDisplay: "₹390",
-    comparePrice: "₹430",
-  },
-  {
-    id: 2,
-    category: "Spiced & Zesty",
-    image: "/images/bangkok-mango-beetroot-1.png",
-    alt: "Thai Mango Chili Lime Bites",
-    badges: [
-      {
-        text: "Sweet, Sour & Spicy",
-        className:
-          "bg-charcoal text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm",
-      },
-    ],
-    weight: "100G Pouch",
-    name: "Thai Mango Chili Lime Bites",
-    desc: "Sun-dried mango tossed in Thai chili and lime for a bold sweet-sour-spicy kick in every bite.",
-    price: 430,
-    priceDisplay: "₹430",
-  },
-  {
-    id: 3,
-    category: "Glazed & Sweet",
-    image: "/images/bangkok-mango-beetroot-2.png",
-    alt: "Thai Mango Honey Glazed Slices",
-    badges: [
-      {
-        text: "Wildflower Honey",
-        className:
-          "bg-gold text-charcoal text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm",
-      },
-    ],
-    weight: "150G Pack",
-    name: "Thai Mango Honey Glazed Slices",
-    desc: "Soft, glossy mango slices finished with a wildflower honey glaze for an extra-indulgent bite.",
-    price: 450,
-    priceDisplay: "₹450",
-  },
-  {
-    id: 4,
-    category: "Fusion Blends",
-    image: "/images/bangkok-mango-beetroot-2.png",
-    alt: "Thai Mango Beetroot Fusion Chews",
-    badges: [
-      {
-        text: "100% Natural",
-        className:
-          "bg-beetroot text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm",
-      },
-      {
-        text: "Product of Thailand",
-        className:
-          "bg-gold text-charcoal text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm",
-      },
-    ],
-    weight: "100G Pouch",
-    name: "Thai Mango Beetroot Fusion Chews",
-    desc: "Real dried Thai mango infused with natural beetroot for vibrant color, earthy sweetness, and antioxidants.",
-    price: 410,
-    priceDisplay: "₹410",
-  },
-  {
-    id: 5,
-    category: "Gift Sets",
-    image: "/images/bangkok-mango-beetroot-1.png",
-    alt: "Thai Mango Discovery Gift Box",
-    badges: [
-      {
-        text: "All 4 Flavors",
-        className:
-          "bg-[#8C2442] text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm",
-      },
-    ],
-    weight: "4 x 100G Pouches",
-    name: "Thai Mango Discovery Gift Box",
-    desc: "Can't decide? This variety box bundles all four Thai Mango flavors in one beautifully packaged gift set.",
-    price: 1450,
-    priceDisplay: "₹1,450",
-    comparePrice: "₹1,600",
-  },
-  {
-    id: 6,
-    category: "Gift Sets",
-    image: "/images/bangkok-mango-beetroot-2.png",
-    alt: "Thai Mango Duo Gift Set",
-    badges: [
-      {
-        text: "Gift Box",
-        className:
-          "bg-gold text-charcoal text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm",
-      },
-    ],
-    weight: "2 x 100G Duo Pack",
-    name: "Thai Mango Duo Gift Set",
-    desc: "Our Classic Sun-Dried Strips paired with Chili Lime Bites in one gift-ready duo pack.",
-    price: 780,
-    priceDisplay: "₹780",
-    comparePrice: "₹860",
-  },
-];
+interface ApiCategory {
+  slug: string;
+  name_en: string;
+}
 
-const FILTERS: { value: string; label: string }[] = [
-  { value: "all", label: "All Items" },
-  { value: "Classic Cuts", label: "Classic Cuts" },
-  { value: "Spiced & Zesty", label: "Spiced & Zesty" },
-  { value: "Glazed & Sweet", label: "Glazed & Sweet" },
-  { value: "Fusion Blends", label: "Fusion Blends" },
-  { value: "Gift Sets", label: "Gift Sets" },
-];
+const BADGE_CLASS =
+  "bg-charcoal text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm";
+const PLACEHOLDER_IMAGE = "/images/logo.png";
+const formatPrice = (value: string) => `₹${Number(value).toLocaleString("en-IN")}`;
+
 
 /* Reads ?category= inside its own Suspense boundary so the catalog itself
    stays in the server-rendered HTML (a page-wide boundary would strip it). */
@@ -168,19 +46,83 @@ function CategoryParamSync({
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
   useEffect(() => {
-    if (categoryParam && FILTERS.some((f) => f.value === categoryParam)) {
+    if (categoryParam) {
       onCategory(categoryParam);
     }
   }, [categoryParam, onCategory]);
   return null;
 }
 
+interface ViewProduct {
+  id: string;
+  slug: string;
+  categorySlug: string;
+  categoryName: string;
+  image: string;
+  alt: string;
+  badges: string[];
+  weight: string;
+  name: string;
+  desc: string;
+  price: number;
+  priceDisplay: string;
+  comparePrice?: string;
+}
+
+function mapProduct(p: ApiProduct): ViewProduct {
+  const variant = p.productVariant;
+  const price = variant ? Number(variant.price) : 0;
+  const compareAt = variant ? Number(variant.compare_at_price) : 0;
+  return {
+    id: p.id,
+    slug: p.slug,
+    categorySlug: p.category.slug,
+    categoryName: p.category.name_en,
+    image: p.images[0] ?? PLACEHOLDER_IMAGE,
+    alt: p.name_en,
+    badges: p.highlights.slice(0, 2),
+    weight: variant ? `${variant.weight_grams}G ${variant.label}` : "",
+    name: p.name_en,
+    desc: p.description_en,
+    price,
+    priceDisplay: variant ? formatPrice(variant.price) : "—",
+    comparePrice:
+      variant && compareAt > price ? formatPrice(variant.compare_at_price) : undefined,
+  };
+}
+
 function ShopPageContent() {
   const { addToCart, openQuickView } = useStore();
   const [activeFilter, setActiveFilter] = useState("all");
 
-  const visibleProducts = PRODUCTS.filter(
-    (p) => activeFilter === "all" || p.category === activeFilter
+  const categoriesQuery = useQuery({
+    queryKey: ["categories"],
+    queryFn: async (): Promise<ApiCategory[]> => {
+      const res = await fetch("/api/categories");
+      if (!res.ok) throw new Error("Failed to load categories");
+      const body = await res.json();
+      return body.data;
+    },
+  });
+
+  const productsQuery = useQuery({
+    queryKey: ["products"],
+    queryFn: async (): Promise<ApiProduct[]> => {
+      const res = await fetch("/api/products");
+      if (!res.ok) throw new Error("Failed to load products");
+      const body = await res.json();
+      return body.data.products;
+    },
+  });
+
+  const filters = [
+    { value: "all", label: "All Items" },
+    ...(categoriesQuery.data ?? []).map((c) => ({ value: c.slug, label: c.name_en })),
+  ];
+
+  const allProducts = (productsQuery.data ?? []).map(mapProduct);
+  const visibleProducts = allProducts.filter(
+    (p) => activeFilter === "all" || p.categorySlug === activeFilter
   );
 
   return (
@@ -215,7 +157,7 @@ function ShopPageContent() {
           {/* Category Tabs & Sorting Bar */}
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-10 pb-6 border-b border-cream">
             <div className="flex flex-wrap gap-2.5">
-              {FILTERS.map((f) => (
+              {filters.map((f) => (
                 <button
                   key={f.value}
                   type="button"
@@ -233,7 +175,9 @@ function ShopPageContent() {
             </div>
 
             <div className="flex items-center gap-4 w-full lg:w-auto justify-between lg:justify-end">
-              <span className="text-xs text-muted font-medium">Showing 6 Products</span>
+              <span className="text-xs text-muted font-medium">
+                Showing {visibleProducts.length} Product{visibleProducts.length === 1 ? "" : "s"}
+              </span>
               <select className="bg-white border border-cream rounded-full px-4 py-2 text-xs font-semibold text-charcoal focus:outline-none focus:border-accent">
                 <option>Featured First</option>
                 <option>Price: Low to High</option>
@@ -244,13 +188,32 @@ function ShopPageContent() {
           </div>
 
           {/* Product Grid */}
+          {productsQuery.isPending ? (
+            <div className="py-24 text-center">
+              <span className="text-xs uppercase tracking-widest text-muted">
+                Loading products...
+              </span>
+            </div>
+          ) : productsQuery.isError ? (
+            <div className="py-24 text-center">
+              <span className="text-xs uppercase tracking-widest text-rose-600">
+                Could not load products. Please try again.
+              </span>
+            </div>
+          ) : visibleProducts.length === 0 ? (
+            <div className="py-24 text-center">
+              <span className="text-xs uppercase tracking-widest text-muted">
+                No products available yet.
+              </span>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {visibleProducts.map((product) => (
               <div
                 key={product.id}
                 className="product-card bg-white rounded-[28px] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 group flex flex-col"
                 data-product-id={product.id}
-                data-category={product.category}
+                data-category={product.categorySlug}
               >
                 <div className="relative aspect-[4/3.8] overflow-hidden bg-[#FAF8F5]">
                   <img
@@ -259,9 +222,9 @@ function ShopPageContent() {
                     className="product-image w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                   />
                   <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-                    {product.badges.map((badge, i) => (
-                      <span key={i} className={badge.className}>
-                        {badge.text}
+                    {product.badges.map((badge) => (
+                      <span key={badge} className={BADGE_CLASS}>
+                        {badge}
                       </span>
                     ))}
                   </div>
@@ -322,6 +285,7 @@ function ShopPageContent() {
               </div>
             ))}
           </div>
+          )}
         </div>
       </section>
 

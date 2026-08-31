@@ -1,4 +1,5 @@
 import PublicShell from "@/components/public/PublicShell";
+import Providers from "@/components/public/Providers";
 import { StoreProvider } from "@/components/public/store";
 
 export default function PublicLayout({
@@ -7,8 +8,10 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <StoreProvider>
-      <PublicShell>{children}</PublicShell>
-    </StoreProvider>
+    <Providers>
+      <StoreProvider>
+        <PublicShell>{children}</PublicShell>
+      </StoreProvider>
+    </Providers>
   );
 }

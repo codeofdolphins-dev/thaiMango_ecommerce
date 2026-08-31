@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   ExternalLink,
   FileText,
+  FolderTree,
   LayoutGrid,
   LogOut,
   MessageSquare,
@@ -23,6 +24,7 @@ const NAV: {
 }[] = [
   { href: "/admin/dashboard", label: "Dashboard", Icon: LayoutGrid },
   { href: "/admin/products", label: "Products", Icon: Package },
+  { href: "/admin/categories", label: "Categories", Icon: FolderTree },
   { href: "/admin/orders", label: "Orders", Icon: ShoppingBag },
   { href: "/admin/reviews", label: "Reviews", Icon: MessageSquare },
   { href: "/admin/coupons", label: "Coupons", Icon: Ticket },
@@ -140,16 +142,22 @@ export default function AdminSidebar({
             <ExternalLink className="w-[18px] h-[18px] text-peach shrink-0" />
             <span className={collapsed ? "lg:hidden" : ""}>Public Site</span>
           </Link>
-          <Link
-            href="/login"
+          <button
+            type="button"
             title={collapsed ? "Sign Out" : undefined}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold uppercase tracking-wide text-rose-500 hover:bg-rose-50 transition ${
+            onClick={async () => {
+              try {
+                await fetch("/api/logout", { method: "POST" });
+              } catch {}
+              window.location.href = "/login";
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold uppercase tracking-wide text-rose-500 hover:bg-rose-50 transition ${
               collapsed ? "lg:justify-center" : ""
             }`}
           >
             <LogOut className="w-[18px] h-[18px] shrink-0" />
             <span className={collapsed ? "lg:hidden" : ""}>Sign Out</span>
-          </Link>
+          </button>
         </div>
       </aside>
     </>

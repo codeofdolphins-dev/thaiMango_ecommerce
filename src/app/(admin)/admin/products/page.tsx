@@ -2,25 +2,119 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Pencil, Plus, Search, Trash2 } from "lucide-react";
-import {
-  CATEGORIES,
-  PRODUCTS,
-  formatINR,
-} from "@/components/admin/data";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Search, Trash2 } from "lucide-react";
+import Select from "react-select";
+import { formatINR } from "@/components/admin/data";
 import { Card, PageHeader, StatusBadge } from "@/components/admin/ui";
+import { compactSelectStyles, SelectOption } from "@/components/admin/selectStyles";
+
+interface AdminVariant {
+  id: number;
+  label: string;
+  weight_grams: number;
+  sku: string;
+  price: string;
+  compare_at_price: string;
+  stock: number;
+}
+
+interface AdminProduct {
+  id: string;
+  slug: string;
+  name_en: string;
+  status: "ACTIVE" | "DRAFT" | "ARCHIVED";
+  images: string[];
+  category: { id: number; slug: string; name_en: string };
+  productVariant: AdminVariant | null;
+}
+
+interface AdminCategory {
+  id: number;
+  slug: string;
+  name_en: string;
+}
+
+const STATUS_LABEL: Record<AdminProduct["status"], string> = {
+  ACTIVE: "Active",
+  DRAFT: "Draft",
+  ARCHIVED: "Archived",
+};
+
+const STATUS_OPTIONS: SelectOption[] = [
+  { value: "ACTIVE", label: "Active" },
+  { value: "DRAFT", label: "Draft" },
+  { value: "ARCHIVED", label: "Archived" },
+];
+
+async function throwOnError(res: Response) {
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body.errors?.[0] || body.message || "Something went wrong");
+  }
+  return body.data;
+}
 
 export default function ProductsPage() {
-  const [category, setCategory] = useState<string>("all");
+  const queryClient = useQueryClient();
+  const [categoryId, setCategoryId] = useState<number | "all">("all");
   const [query, setQuery] = useState("");
+  const [serverError, setServerError] = useState("");
 
-  const rows = PRODUCTS.filter((p) => {
-    const matchCat = category === "all" || p.category === category;
+  const productsQuery = useQuery({
+    queryKey: ["admin-products"],
+    queryFn: async (): Promise<AdminProduct[]> => {
+      const res = await fetch("/api/admin/products");
+      return throwOnError(res);
+    },
+  });
+
+  const categoriesQuery = useQuery({
+    queryKey: ["admin-categories"],
+    queryFn: async (): Promise<AdminCategory[]> => {
+      const res = await fetch("/api/admin/categories");
+      return throwOnError(res);
+    },
+  });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+    queryClient.invalidateQueries({ queryKey: ["products"] });
+  };
+
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await fetch(`/api/admin/products/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      return throwOnError(res);
+    },
+    onSuccess: invalidate,
+    onError: (error: Error) => setServerError(error.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+      return throwOnError(res);
+    },
+    onSuccess: invalidate,
+    onError: (error: Error) => setServerError(error.message),
+  });
+
+  const products = productsQuery.data ?? [];
+  const categories = categoriesQuery.data ?? [];
+
+  const rows = products.filter((p) => {
+    const matchCat = categoryId === "all" || p.category.id === categoryId;
     const q = query.trim().toLowerCase();
     const matchQuery =
       !q ||
-      p.name.toLowerCase().includes(q) ||
-      p.sku.toLowerCase().includes(q);
+      p.name_en.toLowerCase().includes(q) ||
+      (p.productVariant?.sku.toLowerCase().includes(q) ?? false);
     return matchCat && matchQuery;
   });
 
@@ -28,7 +122,11 @@ export default function ProductsPage() {
     <>
       <PageHeader
         title="Products"
-        subtitle={`${PRODUCTS.length} products across ${CATEGORIES.length} categories`}
+        subtitle={
+          productsQuery.isPending
+            ? "Loading…"
+            : `${products.length} products across ${categories.length} categories`
+        }
       >
         <Link
           href="/admin/products/new"
@@ -39,31 +137,37 @@ export default function ProductsPage() {
         </Link>
       </PageHeader>
 
+      {serverError && (
+        <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-sm text-rose-700">
+          {serverError}
+        </div>
+      )}
+
       <Card className="overflow-hidden">
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 border-b border-stone-200/70">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             <button
-              onClick={() => setCategory("all")}
+              onClick={() => setCategoryId("all")}
               className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
-                category === "all"
+                categoryId === "all"
                   ? "bg-gradient-to-r from-peach to-peach-deep text-white shadow-sm shadow-peach/30"
                   : "text-muted hover:bg-peach-soft"
               }`}
             >
               All
             </button>
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <button
-                key={c}
-                onClick={() => setCategory(c)}
+                key={c.id}
+                onClick={() => setCategoryId(c.id)}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
-                  category === c
+                  categoryId === c.id
                     ? "bg-gradient-to-r from-peach to-peach-deep text-white shadow-sm shadow-peach/30"
                     : "text-muted hover:bg-peach-soft"
                 }`}
               >
-                {c}
+                {c.name_en}
               </button>
             ))}
           </div>
@@ -92,83 +196,117 @@ export default function ProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((p) => (
-                <tr
-                  key={p.id}
-                  className="border-b border-stone-100 last:border-0 hover:bg-peach-soft/30 transition"
-                >
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={p.image}
-                        alt={p.name}
-                        className="w-11 h-11 rounded-lg object-cover bg-cream shrink-0"
-                      />
-                      <span className="font-medium text-charcoal max-w-[220px] truncate">
-                        {p.name}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5 text-muted whitespace-nowrap">
-                    {p.sku}
-                  </td>
-                  <td className="px-5 py-3.5 text-muted whitespace-nowrap">
-                    {p.category}
-                  </td>
-                  <td className="px-5 py-3.5 whitespace-nowrap">
-                    <span className="font-medium text-charcoal">
-                      {formatINR(p.price)}
-                    </span>
-                    {p.compareAt ? (
-                      <span className="ml-1.5 text-[11px] text-muted line-through">
-                        {formatINR(p.compareAt)}
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span
-                      className={`font-semibold ${
-                        p.stock === 0
-                          ? "text-rose-600"
-                          : p.stock < 50
-                            ? "text-amber-600"
-                            : "text-charcoal"
-                      }`}
-                    >
-                      {p.stock}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <StatusBadge status={p.status} />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-peach hover:bg-peach-soft transition"
-                        aria-label={`Edit ${p.name}`}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-rose-600 hover:bg-rose-50 transition"
-                        aria-label={`Delete ${p.name}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 ? (
+              {productsQuery.isPending ? (
                 <tr>
-                  <td
-                    colSpan={7}
-                    className="px-5 py-12 text-center text-muted text-sm"
-                  >
-                    No products match your filters.
+                  <td colSpan={7} className="px-5 py-12 text-center text-muted text-sm">
+                    Loading products…
                   </td>
                 </tr>
-              ) : null}
+              ) : (
+                <>
+                  {rows.map((p) => {
+                    const v = p.productVariant;
+                    const price = v ? Number(v.price) : 0;
+                    const compareAt = v ? Number(v.compare_at_price) : 0;
+                    return (
+                      <tr
+                        key={p.id}
+                        className="border-b border-stone-100 last:border-0 hover:bg-peach-soft/30 transition"
+                      >
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={p.images[0] ?? "/images/logo.png"}
+                              alt={p.name_en}
+                              className="w-11 h-11 rounded-lg object-cover bg-cream shrink-0"
+                            />
+                            <span className="font-medium text-charcoal max-w-[220px] truncate">
+                              {p.name_en}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-muted whitespace-nowrap">
+                          {v?.sku ?? "—"}
+                        </td>
+                        <td className="px-5 py-3.5 text-muted whitespace-nowrap">
+                          {p.category.name_en}
+                        </td>
+                        <td className="px-5 py-3.5 whitespace-nowrap">
+                          <span className="font-medium text-charcoal">
+                            {v ? formatINR(price) : "—"}
+                          </span>
+                          {compareAt > price ? (
+                            <span className="ml-1.5 text-[11px] text-muted line-through">
+                              {formatINR(compareAt)}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span
+                            className={`font-semibold ${
+                              !v || v.stock === 0
+                                ? "text-rose-600"
+                                : v.stock < 50
+                                  ? "text-amber-600"
+                                  : "text-charcoal"
+                            }`}
+                          >
+                            {v?.stock ?? 0}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <StatusBadge status={STATUS_LABEL[p.status]} />
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center justify-end gap-2">
+                            <div className="w-[120px]">
+                              <Select<SelectOption>
+                                instanceId={`status-${p.id}`}
+                                options={STATUS_OPTIONS}
+                                value={STATUS_OPTIONS.find((o) => o.value === p.status)}
+                                isDisabled={statusMutation.isPending}
+                                isSearchable={false}
+                                styles={compactSelectStyles}
+                                menuPortalTarget={
+                                  typeof document !== "undefined" ? document.body : undefined
+                                }
+                                onChange={(opt) => {
+                                  if (!opt || opt.value === p.status) return;
+                                  setServerError("");
+                                  statusMutation.mutate({ id: p.id, status: opt.value });
+                                }}
+                                aria-label={`Change status of ${p.name_en}`}
+                              />
+                            </div>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Delete product "${p.name_en}"?`)) {
+                                  setServerError("");
+                                  deleteMutation.mutate(p.id);
+                                }
+                              }}
+                              disabled={deleteMutation.isPending}
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
+                              aria-label={`Delete ${p.name_en}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-5 py-12 text-center text-muted text-sm">
+                        {products.length === 0
+                          ? "No products yet — add your first product."
+                          : "No products match your filters."}
+                      </td>
+                    </tr>
+                  ) : null}
+                </>
+              )}
             </tbody>
           </table>
         </div>

@@ -1,42 +1,114 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Eye, Search } from "lucide-react";
-import { ORDERS, OrderStatus, formatINR } from "@/components/admin/data";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Search } from "lucide-react";
+import Select from "react-select";
+import { formatINR } from "@/components/admin/data";
 import { Card, PageHeader, StatusBadge } from "@/components/admin/ui";
+import { compactSelectStyles, SelectOption } from "@/components/admin/selectStyles";
 
-const TABS: (OrderStatus | "All")[] = [
-  "All",
-  "Pending",
-  "Processing",
-  "Shipped",
-  "Delivered",
-  "Cancelled",
+type OrderStatus = "PENDING" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+
+interface AdminOrder {
+  id: string;
+  order_no: number;
+  status: OrderStatus;
+  payment: "PREPAID" | "COD";
+  total: string;
+  created_at: string;
+  user: { name: string; email: string };
+  _count: { items: number };
+}
+
+const STATUS_LABEL: Record<OrderStatus, string> = {
+  PENDING: "Pending",
+  PROCESSING: "Processing",
+  SHIPPED: "Shipped",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
+};
+
+const STATUS_OPTIONS: SelectOption[] = (
+  Object.entries(STATUS_LABEL) as [OrderStatus, string][]
+).map(([value, label]) => ({ value, label }));
+
+const TABS: (OrderStatus | "ALL")[] = [
+  "ALL",
+  "PENDING",
+  "PROCESSING",
+  "SHIPPED",
+  "DELIVERED",
+  "CANCELLED",
 ];
 
-export default function OrdersPage() {
-  const [tab, setTab] = useState<OrderStatus | "All">("All");
-  const [query, setQuery] = useState("");
+async function throwOnError(res: Response) {
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body.errors?.[0] || body.message || "Something went wrong");
+  }
+  return body.data;
+}
 
-  const rows = ORDERS.filter((o) => {
-    const matchTab = tab === "All" || o.status === tab;
+export default function OrdersPage() {
+  const queryClient = useQueryClient();
+  const [tab, setTab] = useState<OrderStatus | "ALL">("ALL");
+  const [query, setQuery] = useState("");
+  const [serverError, setServerError] = useState("");
+
+  const ordersQuery = useQuery({
+    queryKey: ["admin-orders"],
+    queryFn: async (): Promise<AdminOrder[]> => {
+      const res = await fetch("/api/admin/orders");
+      return throwOnError(res);
+    },
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await fetch(`/api/admin/orders/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      return throwOnError(res);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+    },
+    onError: (error: Error) => setServerError(error.message),
+  });
+
+  const orders = ordersQuery.data ?? [];
+
+  const rows = orders.filter((o) => {
+    const matchTab = tab === "ALL" || o.status === tab;
     const q = query.trim().toLowerCase();
     const matchQuery =
       !q ||
-      o.id.toLowerCase().includes(q) ||
-      o.customer.toLowerCase().includes(q) ||
-      o.email.toLowerCase().includes(q);
+      `tm-${o.order_no}`.includes(q) ||
+      o.user.name.toLowerCase().includes(q) ||
+      o.user.email.toLowerCase().includes(q);
     return matchTab && matchQuery;
   });
 
   return (
     <>
-      <PageHeader title="Orders" subtitle={`${ORDERS.length} total orders`}>
-        <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200/70 bg-white text-sm font-semibold text-charcoal hover:border-peach transition">
-          <Download className="w-4 h-4" />
-          Export
-        </button>
-      </PageHeader>
+      <PageHeader
+        title="Orders"
+        subtitle={
+          ordersQuery.isPending
+            ? "Loading…"
+            : `${orders.length} total order${orders.length === 1 ? "" : "s"}`
+        }
+      />
+
+      {serverError && (
+        <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-sm text-rose-700">
+          {serverError}
+        </div>
+      )}
 
       <Card className="overflow-hidden">
         {/* Toolbar */}
@@ -52,7 +124,7 @@ export default function OrdersPage() {
                     : "text-muted hover:bg-peach-soft"
                 }`}
               >
-                {t}
+                {t === "ALL" ? "All" : STATUS_LABEL[t]}
               </button>
             ))}
           </div>
@@ -68,71 +140,95 @@ export default function OrdersPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[720px]">
+          <table className="w-full text-sm min-w-[760px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wider text-muted border-b border-stone-200/70 bg-[#F5F4F1]">
-                <th className="font-semibold px-5 py-3">Order ID</th>
+                <th className="font-semibold px-5 py-3">Order</th>
                 <th className="font-semibold px-5 py-3">Customer</th>
                 <th className="font-semibold px-5 py-3">Date</th>
                 <th className="font-semibold px-5 py-3">Items</th>
                 <th className="font-semibold px-5 py-3">Payment</th>
                 <th className="font-semibold px-5 py-3">Total</th>
                 <th className="font-semibold px-5 py-3">Status</th>
-                <th className="font-semibold px-5 py-3 text-right">Action</th>
+                <th className="font-semibold px-5 py-3 text-right">Update</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((o) => (
-                <tr
-                  key={o.id}
-                  className="border-b border-stone-100 last:border-0 hover:bg-peach-soft/30 transition"
-                >
-                  <td className="px-5 py-3.5 font-semibold text-charcoal whitespace-nowrap">
-                    {o.id}
-                  </td>
-                  <td className="px-5 py-3.5 whitespace-nowrap">
-                    <div className="text-charcoal font-medium">{o.customer}</div>
-                    <div className="text-[11px] text-muted">{o.email}</div>
-                  </td>
-                  <td className="px-5 py-3.5 text-muted whitespace-nowrap">
-                    {o.date}
-                  </td>
-                  <td className="px-5 py-3.5 text-muted">{o.items}</td>
-                  <td className="px-5 py-3.5">
-                    <span
-                      className={`text-xs font-semibold ${
-                        o.payment === "COD" ? "text-amber-600" : "text-emerald-600"
-                      }`}
-                    >
-                      {o.payment}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5 font-medium text-charcoal whitespace-nowrap">
-                    {formatINR(o.total)}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <StatusBadge status={o.status} />
-                  </td>
-                  <td className="px-5 py-3.5 text-right">
-                    <button
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-peach hover:bg-peach-soft transition"
-                      aria-label={`View ${o.id}`}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 ? (
+              {ordersQuery.isPending ? (
                 <tr>
-                  <td
-                    colSpan={8}
-                    className="px-5 py-12 text-center text-muted text-sm"
-                  >
-                    No orders match your filters.
+                  <td colSpan={8} className="px-5 py-12 text-center text-muted text-sm">
+                    Loading orders…
                   </td>
                 </tr>
-              ) : null}
+              ) : (
+                <>
+                  {rows.map((o) => (
+                    <tr
+                      key={o.id}
+                      className="border-b border-stone-100 last:border-0 hover:bg-peach-soft/30 transition"
+                    >
+                      <td className="px-5 py-3.5 font-semibold text-charcoal whitespace-nowrap">
+                        TM-{String(o.order_no).padStart(5, "0")}
+                      </td>
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        <div className="text-charcoal font-medium">{o.user.name}</div>
+                        <div className="text-[11px] text-muted">{o.user.email}</div>
+                      </td>
+                      <td className="px-5 py-3.5 text-muted whitespace-nowrap">
+                        {new Date(o.created_at).toLocaleDateString("en-IN")}
+                      </td>
+                      <td className="px-5 py-3.5 text-muted">{o._count.items}</td>
+                      <td className="px-5 py-3.5">
+                        <span
+                          className={`text-xs font-semibold ${
+                            o.payment === "COD" ? "text-amber-600" : "text-emerald-600"
+                          }`}
+                        >
+                          {o.payment}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 font-medium text-charcoal whitespace-nowrap">
+                        {formatINR(Number(o.total))}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <StatusBadge status={STATUS_LABEL[o.status]} />
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex justify-end">
+                          <div className="w-[130px]">
+                            <Select<SelectOption>
+                              instanceId={`order-status-${o.id}`}
+                              options={STATUS_OPTIONS}
+                              value={STATUS_OPTIONS.find((s) => s.value === o.status)}
+                              isDisabled={statusMutation.isPending}
+                              isSearchable={false}
+                              styles={compactSelectStyles}
+                              menuPortalTarget={
+                                typeof document !== "undefined" ? document.body : undefined
+                              }
+                              onChange={(opt) => {
+                                if (!opt || opt.value === o.status) return;
+                                setServerError("");
+                                statusMutation.mutate({ id: o.id, status: opt.value });
+                              }}
+                              aria-label={`Update status of order ${o.order_no}`}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-5 py-12 text-center text-muted text-sm">
+                        {orders.length === 0
+                          ? "No orders yet — they'll appear here once customers start ordering."
+                          : "No orders match your filters."}
+                      </td>
+                    </tr>
+                  ) : null}
+                </>
+              )}
             </tbody>
           </table>
         </div>
