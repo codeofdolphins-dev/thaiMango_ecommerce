@@ -10,19 +10,27 @@ import {
   PackageCheck,
   Headphones,
   Check,
+  Banknote,
 } from "lucide-react";
+import Select from "react-select";
+import { RazorpayIcon, StripeIcon } from "@/components/public/BrandIcons";
+import PhoneField from "@/components/common/PhoneField";
+import {
+  publicSelectStyles,
+  type PublicSelectOption,
+} from "@/components/public/selectStyles";
 import { useStore } from "@/components/public/store";
 import {
-  formatPrice,
   FREE_SHIPPING_THRESHOLD,
   STANDARD_SHIPPING,
 } from "@/lib/site-data";
+
 import StripeCardForm, {
   type CardPayFn,
 } from "@/components/public/StripeCardForm";
 
 type ShippingMethod = "standard" | "priority";
-type PaymentMethod = "upi" | "card" | "netbanking" | "cod";
+type PaymentMethod = "cod" | "razorpay" | "stripe";
 
 /* ── Razorpay Checkout (loaded on demand from checkout.razorpay.com) ── */
 
@@ -72,15 +80,46 @@ function loadRazorpayScript(): Promise<boolean> {
   });
 }
 
-const PAYMENT_TABS: { id: PaymentMethod; label: string }[] = [
-  { id: "upi", label: "UPI & QR" },
-  { id: "card", label: "Cards" },
-  { id: "netbanking", label: "Net Banking" },
-  { id: "cod", label: "Cash / COD" },
+/* Tabs are the payment gateway, not the instrument: Razorpay's own window
+   covers UPI / cards / net banking, Stripe handles cards inline. */
+interface PaymentTab {
+  id: PaymentMethod;
+  label: string;
+  hint: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  /* Razorpay settles domestic INR payments, so it is offered in India only. */
+  indiaOnly?: boolean;
+}
+
+const PAYMENT_TABS: PaymentTab[] = [
+  { id: "cod", label: "Cash / COD", hint: "Pay on delivery", Icon: Banknote },
+  {
+    id: "razorpay",
+    label: "Razorpay",
+    hint: "UPI, cards & net banking",
+    Icon: RazorpayIcon,
+    indiaOnly: true,
+  },
+  { id: "stripe", label: "Stripe", hint: "International cards", Icon: StripeIcon },
 ];
 
+const COUNTRIES = ["India", "United States", "Thailand", "Singapore", "United Kingdom"];
+
+const countrySelectStyles = publicSelectStyles<PublicSelectOption>();
+
 export default function CheckoutPage() {
-  const { cart, subtotal, user, clearCart, showToast, mounted } = useStore();
+  const {
+    cart,
+    subtotal,
+    user,
+    clearCart,
+    showToast,
+    mounted,
+    formatPrice,
+    currency,
+    displayRate,
+    settings,
+  } = useStore();
 
   const cartItems = useMemo(() => (mounted ? cart : []), [mounted, cart]);
 
@@ -92,7 +131,55 @@ export default function CheckoutPage() {
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>(
     "standard"
   );
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("upi");
+  const [country, setCountry] = useState("India");
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("cod");
+
+  const isIndia = country === "India";
+  /* Admin Settings decide which gateways exist at all; the country then decides
+     whether the India-only ones apply. */
+  const codEnabled = settings?.cod_enabled ?? true;
+  const upiEnabled = settings?.upi_enabled ?? true;
+  const intlShipping = settings?.intl_shipping ?? false;
+  /* A gateway is offered only when it is enabled *and* has keys saved. */
+  const razorpayReady = settings?.razorpay_enabled ?? false;
+  const stripeReady = settings?.stripe_enabled ?? false;
+
+  const countryOptions = useMemo(
+    () => (intlShipping ? COUNTRIES : ["India"]),
+    [intlShipping]
+  );
+  const countrySelectOptions = useMemo<PublicSelectOption[]>(
+    () => countryOptions.map((c) => ({ value: c, label: c })),
+    [countryOptions]
+  );
+
+  /* Turning international shipping off strands anyone who picked another
+     country — pull them back to India. */
+  useEffect(() => {
+    if (!countryOptions.includes(country)) setCountry("India");
+  }, [countryOptions, country]);
+
+  const availableTabs = useMemo(
+    () =>
+      PAYMENT_TABS.filter((tab) => {
+        if (tab.indiaOnly && !isIndia) return false;
+        if (tab.id === "cod" && !codEnabled) return false;
+        /* A gateway needs both its Settings toggle and saved keys. */
+        if (tab.id === "razorpay" && !(upiEnabled && razorpayReady)) return false;
+        if (tab.id === "stripe" && !stripeReady) return false;
+        return true;
+      }),
+    [isIndia, codEnabled, upiEnabled, razorpayReady, stripeReady]
+  );
+
+  /* Whenever the offered set changes, make sure the selection still points at
+     something that is actually available. */
+  useEffect(() => {
+    if (availableTabs.length === 0) return;
+    if (!availableTabs.some((tab) => tab.id === selectedPayment)) {
+      setSelectedPayment(availableTabs[0].id);
+    }
+  }, [availableTabs, selectedPayment]);
   const [couponDiscount, setCouponDiscount] = useState(0);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -129,15 +216,24 @@ export default function CheckoutPage() {
     };
   }, [showSuccessModal]);
 
-  const standardCost =
-    subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING;
-  const shippingCost = shippingMethod === "priority" ? 199 : standardCost;
+  /* Shipping thresholds and VAT come from admin Settings, falling back to the
+     site defaults until the settings request resolves. */
+  const freeShippingAbove =
+    settings?.free_shipping_above ?? FREE_SHIPPING_THRESHOLD;
+  const standardShipping = settings?.standard_shipping ?? STANDARD_SHIPPING;
+  const priorityShipping = settings?.priority_shipping ?? 199;
+  const vatRatePct = settings?.gst_rate ?? 0;
+  const vatRate = vatRatePct / 100;
+
+  const standardCost = subtotal >= freeShippingAbove ? 0 : standardShipping;
+  const shippingCost =
+    shippingMethod === "priority" ? priorityShipping : standardCost;
   const discountAmount = Math.round(subtotal * couponDiscount);
   const total = Math.max(
     0,
     subtotal - discountAmount + (subtotal > 0 ? shippingCost : 0)
   );
-  const gstAmount = Math.round(subtotal * 0.18);
+  const gstAmount = Math.round(subtotal * vatRate);
 
   /* On a real payment the gateway's payment id becomes the order reference;
      COD falls back to a locally generated one. */
@@ -273,7 +369,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (selectedPayment === "card") {
+    if (selectedPayment === "stripe") {
       if (!cardPayRef.current) {
         showToast("The card form is still loading — one moment.");
         return;
@@ -289,7 +385,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    /* UPI & Net Banking both route through Razorpay Checkout. */
+    /* Razorpay Checkout covers UPI, cards and net banking in its own window. */
     await payWithRazorpay();
   };
 
@@ -316,8 +412,13 @@ export default function CheckoutPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
             {/* Left Column: Checkout Form Steps */}
             <div className="lg:col-span-7 xl:col-span-8 space-y-8">
-              {/* Quick Express Checkout Buttons */}
-              <div className="p-6 rounded-3xl bg-white border border-cream shadow-sm">
+              {/* Quick Express Checkout — UPI via Razorpay: India only, and
+                  only while UPI payments are enabled in admin Settings. */}
+              <div
+                className={`p-6 rounded-3xl bg-white border border-cream shadow-sm ${
+                  settings && isIndia && upiEnabled ? "" : "hidden"
+                }`}
+              >
                 <span className="text-[10px] uppercase tracking-widest text-muted font-bold block text-center mb-3">
                   Express 1-Click Checkout
                 </span>
@@ -392,14 +493,12 @@ export default function CheckoutPage() {
                       <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
                         Phone Number (For Courier Tracking) *
                       </label>
-                      <input
-                        type="tel"
+                      <PhoneField
                         id="co-phone"
                         required
-                        placeholder="+91 98765 43210"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/40 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
+                        onChange={setPhone}
+                        inputClassName="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/40 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
                       />
                     </div>
                   </div>
@@ -505,12 +604,33 @@ export default function CheckoutPage() {
                       <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
                         Country
                       </label>
-                      <input
-                        type="text"
-                        defaultValue="India"
-                        disabled
-                        className="w-full px-4 py-3 rounded-xl border border-cream bg-cream/30 text-sm text-charcoal font-semibold cursor-not-allowed"
+                      <Select<PublicSelectOption>
+                        instanceId="co-country"
+                        options={countrySelectOptions}
+                        value={
+                          countrySelectOptions.find((o) => o.value === country) ??
+                          null
+                        }
+                        onChange={(opt) => setCountry(opt?.value ?? "India")}
+                        isSearchable={countrySelectOptions.length > 6}
+                        isDisabled={countrySelectOptions.length === 1}
+                        styles={countrySelectStyles}
+                        menuPortalTarget={
+                          typeof document !== "undefined" ? document.body : undefined
+                        }
+                        aria-label="Shipping country"
                       />
+                      {!intlShipping && (
+                        <p className="text-[11px] text-muted mt-1.5">
+                          We currently ship within India only.
+                        </p>
+                      )}
+                      {intlShipping && !isIndia && (
+                        <p className="text-[11px] text-muted mt-1.5">
+                          Razorpay settles domestic Indian payments only — pay by
+                          card via Stripe for this destination.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -548,8 +668,9 @@ export default function CheckoutPage() {
                             Standard Mango Express (2–4 Days)
                           </h4>
                           <p className="text-[11px] text-muted">
-                            Complimentary on orders above ₹1,500, packed fresh
-                            for shipping.
+                            Complimentary on orders above{" "}
+                            {formatPrice(freeShippingAbove)}, packed fresh for
+                            shipping.
                           </p>
                         </div>
                       </div>
@@ -587,7 +708,7 @@ export default function CheckoutPage() {
                         </div>
                       </div>
                       <span className="text-xs font-bold text-charcoal">
-                        ₹199
+                        {formatPrice(priorityShipping)}
                       </span>
                     </label>
                   </div>
@@ -605,76 +726,90 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* Payment Method Tabs */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
-                    {PAYMENT_TABS.map((tab) => (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setSelectedPayment(tab.id)}
-                        className={`pay-tab-btn py-3 px-2 rounded-2xl border text-xs font-semibold text-center transition ${
-                          selectedPayment === tab.id
-                            ? "active border-charcoal bg-charcoal text-white"
-                            : "border-cream bg-ivory/50 text-charcoal hover:border-accent"
-                        }`}
-                      >
-                        <span>{tab.label}</span>
-                      </button>
-                    ))}
+                  {availableTabs.length === 0 && (
+                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 mb-6">
+                      <p className="text-xs font-semibold text-amber-900 mb-1">
+                        No payment method is available
+                      </p>
+                      <p className="text-[11px] text-amber-800 leading-relaxed">
+                        Every payment option has been switched off for this
+                        destination. Please contact us to complete your order.
+                      </p>
+                    </div>
+                  )}
+                  <div
+                    className={`grid grid-cols-1 gap-2 mb-6 ${
+                      availableTabs.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"
+                    }`}
+                  >
+                    {availableTabs.map(({ id, label, hint, Icon }) => {
+                      const active = selectedPayment === id;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setSelectedPayment(id)}
+                          className={`pay-tab-btn flex items-center gap-3 py-3 px-4 rounded-2xl border text-left transition ${
+                            active
+                              ? "active border-charcoal bg-charcoal text-white"
+                              : "border-cream bg-ivory/50 text-charcoal hover:border-accent"
+                          }`}
+                        >
+                          <Icon className="w-6 h-6 shrink-0" />
+                          <span className="min-w-0">
+                            <span className="block text-xs font-semibold truncate">
+                              {label}
+                            </span>
+                            <span
+                              className={`block text-[10px] truncate ${
+                                active ? "text-white/70" : "text-muted"
+                              }`}
+                            >
+                              {hint}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
 
-                  {/* UPI Tab Content */}
+                  {/* Razorpay Tab Content */}
                   <div
                     className={`pay-tab-content space-y-4 ${
-                      selectedPayment === "upi" ? "" : "hidden"
+                      selectedPayment === "razorpay" ? "" : "hidden"
                     }`}
                   >
                     <div className="p-4 rounded-2xl bg-cream/40 border border-cream">
                       <p className="text-xs font-semibold text-charcoal mb-1">
-                        Pay with any UPI app via Razorpay
+                        UPI, Cards &amp; Net Banking via Razorpay
                       </p>
                       <p className="text-[11px] text-muted leading-relaxed">
-                        Google Pay, PhonePe, Paytm, BHIM, or any UPI ID / QR
-                        scan. Clicking Complete Order opens the secure Razorpay
-                        window to finish the payment.
+                        Google Pay, PhonePe, Paytm, BHIM, any UPI ID / QR scan,
+                        debit &amp; credit cards, plus HDFC, ICICI, SBI, Axis,
+                        Kotak and all major Indian banks. Clicking Complete
+                        Order opens the secure Razorpay window where you choose
+                        how to pay.
                       </p>
                     </div>
                   </div>
 
-                  {/* Card Tab Content */}
+                  {/* Stripe Tab Content */}
                   <div
                     className={`pay-tab-content space-y-4 ${
-                      selectedPayment === "card" ? "" : "hidden"
+                      selectedPayment === "stripe" ? "" : "hidden"
                     }`}
                   >
-                    {selectedPayment === "card" && (
+                    {selectedPayment === "stripe" && (
                       <StripeCardForm
-                        amountPaise={Math.round(total * 100)}
+                        amountPaise={Math.round(total * displayRate * 100)}
                         buildPayload={buildPayload}
                         registerPay={registerCardPay}
                       />
                     )}
                     <p className="text-[11px] text-muted">
-                      Cards are processed securely by Stripe — details never
-                      touch our servers.
+                      International cards processed securely by Stripe — details
+                      never touch our servers.
                     </p>
-                  </div>
-
-                  {/* Net Banking Content */}
-                  <div
-                    className={`pay-tab-content space-y-4 ${
-                      selectedPayment === "netbanking" ? "" : "hidden"
-                    }`}
-                  >
-                    <div className="p-4 rounded-2xl bg-cream/40 border border-cream">
-                      <p className="text-xs font-semibold text-charcoal mb-1">
-                        Net Banking via Razorpay
-                      </p>
-                      <p className="text-[11px] text-muted leading-relaxed">
-                        HDFC, ICICI, SBI, Axis, Kotak and all major Indian
-                        banks are supported. You&apos;ll pick your bank in the
-                        secure Razorpay window after clicking Complete Order.
-                      </p>
-                    </div>
                   </div>
 
                   {/* Cash on Delivery Content */}
@@ -841,7 +976,7 @@ export default function CheckoutPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-xs text-muted/70">
-                    <span>GST (18% Included)</span>
+                    <span>VAT ({vatRatePct}% included)</span>
                     <span>{formatPrice(gstAmount)}</span>
                   </div>
                 </div>

@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { useStore } from "@/components/public/store";
+import PhoneField from "@/components/common/PhoneField";
 
 export default function ContactPage() {
   const { showToast } = useStore();
+  const [contactPhone, setContactPhone] = useState("");
 
   return (
     <main>
@@ -106,7 +109,12 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-charcoal mb-2">Phone Number</label>
-                    <input type="tel" placeholder="+91 98765 43210" className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory text-sm focus:outline-none focus:border-accent" />
+                    <PhoneField
+                      id="contact-phone"
+                      value={contactPhone}
+                      onChange={setContactPhone}
+                      inputClassName="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory text-sm focus:outline-none focus:border-accent"
+                    />
                   </div>
                 </div>
 

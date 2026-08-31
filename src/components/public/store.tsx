@@ -13,7 +13,19 @@ import {
   AuthUser,
   Lang,
   translations,
+  FREE_SHIPPING_THRESHOLD,
+  STANDARD_SHIPPING,
 } from "@/lib/site-data";
+import { THAI_VAT_RATE } from "@/schemas/settings.schema";
+import {
+  CurrencyCode,
+  DEFAULT_CURRENCY,
+  convertAmount,
+  currencySymbol,
+  formatMoney,
+} from "@/lib/currency";
+import type { PublicSettings } from "@/lib/storeSettings";
+import { normalizeImagePath } from "@/lib/images";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -32,6 +44,7 @@ export interface QuickViewProduct {
   price: string;
   image: string;
   desc: string;
+  slug?: string;
 }
 
 interface Toast {
@@ -71,6 +84,20 @@ interface StoreValue {
   setUser: (u: AuthUser | null) => void;
   logout: () => void;
   authLoading: boolean;
+  /* store settings / currency */
+  settings: PublicSettings | null;
+  /** Visitor's display currency. */
+  currency: CurrencyCode;
+  /** Currency product amounts are stored in. */
+  baseCurrency: CurrencyCode;
+  /** Multiplier from base → display currency. */
+  displayRate: number;
+  currencySymbol: string;
+  formatPrice: (amount: number) => string;
+  freeShippingThreshold: number;
+  standardShipping: number;
+  /** VAT as a fraction, e.g. 0.07 */
+  taxRate: number;
   /* ui */
   cartOpen: boolean;
   openCart: () => void;
@@ -91,8 +118,7 @@ interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 /* legacy image paths saved by the static site used relative "images/…" */
-const normalizeImg = (src: string) =>
-  src && !src.startsWith("/") && !src.startsWith("http") ? `/${src}` : src;
+const normalizeImg = normalizeImagePath;
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>("en");
@@ -128,6 +154,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (savedLang === "th" || savedLang === "en") setLangState(savedLang);
     setMounted(true);
   }, []);
+
+  /* store settings drive the displayed currency (and later shipping rules) */
+  const settingsQuery = useQuery({
+    queryKey: ["public-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings");
+      if (!res.ok) return null;
+      const body = await res.json();
+      return body.data as PublicSettings;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const settings = settingsQuery.data ?? null;
+  /* Visitor-resolved display currency (IN → ₹, TH → ฿, else the admin's
+     display currency or $) and the base → display FX rate that price values —
+     stored in the base currency — are multiplied by before formatting. */
+  const currency: CurrencyCode = settings?.display_currency ?? DEFAULT_CURRENCY;
+  const displayRate = settings?.display_rate ?? 1;
+  const baseCurrency: CurrencyCode = settings?.base_currency ?? DEFAULT_CURRENCY;
+  const formatPrice = useCallback(
+    (amount: number) =>
+      formatMoney(convertAmount(amount, displayRate, currency), currency),
+    [currency, displayRate]
+  );
+  /* Shipping/tax amounts come from admin settings; static constants are only
+     the pre-fetch fallback. */
+  const freeShippingThreshold =
+    settings?.free_shipping_above ?? FREE_SHIPPING_THRESHOLD;
+  const standardShipping = settings?.standard_shipping ?? STANDARD_SHIPPING;
+  const taxRate = (settings?.gst_rate ?? THAI_VAT_RATE) / 100;
 
   /* hydrate the real session from the httpOnly cookie via the API */
   const meQuery = useQuery({
@@ -373,6 +430,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setUser,
         logout,
         authLoading,
+        settings,
+        currency,
+        baseCurrency,
+        displayRate,
+        currencySymbol: currencySymbol(currency),
+        formatPrice,
+        freeShippingThreshold,
+        standardShipping,
+        taxRate,
         cartOpen,
         openCart,
         closeCart,

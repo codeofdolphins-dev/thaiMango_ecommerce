@@ -5,6 +5,8 @@ import { ArrowRight, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "./store";
+import { minPrice } from "@/lib/variants";
+import { productImage } from "@/lib/images";
 
 interface SearchProduct {
   id: string;
@@ -12,7 +14,7 @@ interface SearchProduct {
   name_en: string;
   images: string[];
   category: { slug: string; name_en: string };
-  productVariant: { price: string } | null;
+  productVariant: { price: string; is_default: boolean; stock: number }[];
 }
 
 interface PublicCategory {
@@ -30,7 +32,7 @@ const CONTENT_PAGES = [
 ];
 
 export default function SearchOverlay() {
-  const { searchOpen, closeSearch } = useStore();
+  const { searchOpen, closeSearch, formatPrice } = useStore();
   const [query, setQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -148,7 +150,7 @@ export default function SearchOverlay() {
                     onClick={closeSearch}
                   >
                     <img
-                      src={p.images[0] ?? "/images/logo.png"}
+                      src={productImage(p.images)}
                       alt={p.name_en}
                       className="w-12 h-12 object-cover rounded-xl bg-cream shrink-0"
                     />
@@ -159,9 +161,10 @@ export default function SearchOverlay() {
                       <h5 className="text-xs font-semibold text-charcoal group-hover:text-accent transition truncate">
                         {p.name_en}
                       </h5>
-                      {p.productVariant && (
+                      {minPrice(p.productVariant) !== null && (
                         <span className="text-[11px] text-muted font-medium">
-                          ₹{Number(p.productVariant.price)}
+                          {p.productVariant.length > 1 ? "From " : ""}
+                          {formatPrice(Number(minPrice(p.productVariant)))}
                         </span>
                       )}
                     </div>
@@ -177,7 +180,7 @@ export default function SearchOverlay() {
                     <img
                       src="/images/logo.png"
                       alt={item.title}
-                      className="w-12 h-12 object-cover rounded-xl bg-cream shrink-0"
+                      className="w-12 h-12 object-contain p-1 rounded-xl bg-cream shrink-0"
                     />
                     <div className="min-w-0 flex-1">
                       <span className="text-[9px] uppercase tracking-wider text-accent font-bold block">

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import Select from "react-select";
-import { formatINR } from "@/components/admin/data";
+import { useMoney } from "@/components/admin/useMoney";
 import { Card, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { compactSelectStyles, SelectOption } from "@/components/admin/selectStyles";
 
@@ -51,6 +51,7 @@ async function throwOnError(res: Response) {
 }
 
 export default function OrdersPage() {
+  const { format: money } = useMoney();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<OrderStatus | "ALL">("ALL");
   const [query, setQuery] = useState("");
@@ -188,7 +189,7 @@ export default function OrdersPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3.5 font-medium text-charcoal whitespace-nowrap">
-                        {formatINR(Number(o.total))}
+                        {money(Number(o.total))}
                       </td>
                       <td className="px-5 py-3.5">
                         <StatusBadge status={STATUS_LABEL[o.status]} />

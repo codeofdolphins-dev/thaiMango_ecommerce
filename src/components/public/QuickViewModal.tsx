@@ -102,7 +102,7 @@ export default function QuickViewModal() {
               Add to Cart
             </button>
             <Link
-              href="/product-detail"
+              href={quickView?.slug ? `/product-detail/${quickView.slug}` : "/shop"}
               className="w-full py-3 text-[10px] tracking-widest uppercase text-charcoal underline hover:text-accent transition text-center block"
               onClick={closeQuickView}
             >

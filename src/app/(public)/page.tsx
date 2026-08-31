@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -15,9 +16,158 @@ import {
 } from "lucide-react";
 import { InstagramIcon } from "@/components/public/BrandIcons";
 import { useStore } from "@/components/public/store";
+import { defaultVariant, minPrice } from "@/lib/variants";
+import { productImage } from "@/lib/images";
+
+interface ApiVariant {
+  label: string;
+  weight_grams: number;
+  price: string;
+  compare_at_price: string;
+  stock: number;
+  is_default: boolean;
+}
+
+interface ApiProduct {
+  id: string;
+  slug: string;
+  name_en: string;
+  description_en: string;
+  images: string[];
+  highlights: string[];
+  category: { slug: string; name_en: string };
+  productVariant: ApiVariant[];
+}
+
+interface ApiCategory {
+  id: number;
+  slug: string;
+  name_en: string;
+  name_th: string;
+  cat_id: number | null;
+}
+
+interface ContentBlock {
+  id: string;
+  content: string;
+}
+
+const FALLBACK_IMAGES = [
+  "/images/bangkok-mango-beetroot-1.png",
+  "/images/bangkok-mango-beetroot-2.png",
+];
+
+type PriceFormatter = (value: number) => string;
+
+interface HomeProduct {
+  id: string;
+  slug: string;
+  name: string;
+  desc: string;
+  image: string;
+  categorySlug: string;
+  categoryName: string;
+  badges: string[];
+  price: number;
+  priceDisplay: string;
+  comparePriceDisplay?: string;
+  discountPct?: number;
+}
+
+function mapProduct(p: ApiProduct, formatPrice: PriceFormatter): HomeProduct {
+  /* Cards show the default variant; "from <price>" when cheaper sizes exist. */
+  const variant = defaultVariant(p.productVariant);
+  const lowest = minPrice(p.productVariant);
+  const price = variant ? Number(variant.price) : 0;
+  const compareAt = variant ? Number(variant.compare_at_price) : 0;
+  const hasCheaper = lowest !== null && lowest < price;
+  const hasDiscount = variant !== null && !hasCheaper && compareAt > price;
+  return {
+    id: p.id,
+    slug: p.slug,
+    name: p.name_en,
+    desc: p.description_en,
+    image: productImage(p.images),
+    categorySlug: p.category.slug,
+    categoryName: p.category.name_en,
+    badges: p.highlights.slice(0, 2),
+    price: hasCheaper ? lowest : price,
+    priceDisplay: !variant
+      ? "—"
+      : hasCheaper
+        ? `From ${formatPrice(lowest)}`
+        : formatPrice(price),
+    comparePriceDisplay: hasDiscount ? formatPrice(compareAt) : undefined,
+    discountPct: hasDiscount
+      ? Math.round(((compareAt - price) / compareAt) * 100)
+      : undefined,
+  };
+}
 
 export default function Home() {
-  const { t, addToCart, showToast } = useStore();
+  const { t, addToCart, showToast, formatPrice } = useStore();
+
+  /* Admin-editable copy (Admin → Site Content) */
+  const contentQuery = useQuery({
+    queryKey: ["site-content"],
+    queryFn: async (): Promise<ContentBlock[]> => {
+      const res = await fetch("/api/site-content");
+      if (!res.ok) throw new Error("Failed to load site content");
+      const body = await res.json();
+      return body.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const productsQuery = useQuery({
+    queryKey: ["home-products"],
+    queryFn: async (): Promise<ApiProduct[]> => {
+      const res = await fetch("/api/products?limit=6");
+      if (!res.ok) throw new Error("Failed to load products");
+      const body = await res.json();
+      return body.data.products;
+    },
+  });
+
+  const categoriesQuery = useQuery({
+    queryKey: ["categories"],
+    queryFn: async (): Promise<ApiCategory[]> => {
+      const res = await fetch("/api/categories");
+      if (!res.ok) throw new Error("Failed to load categories");
+      const body = await res.json();
+      return body.data;
+    },
+  });
+
+  const blocks = new Map(
+    (contentQuery.data ?? []).map((b) => [b.id, b.content])
+  );
+  const content = (id: string, fallback: string) =>
+    blocks.get(id)?.trim() || fallback;
+
+  const products = (productsQuery.data ?? []).map((p) =>
+    mapProduct(p, formatPrice)
+  );
+  const showcase = products.slice(0, 3);
+  const collections = products.length > 3 ? products.slice(3, 6) : products;
+
+  const rootCategories = (categoriesQuery.data ?? [])
+    .filter((c) => c.cat_id === null)
+    .slice(0, 4);
+  const categoryImage = (slug: string, index: number) => {
+    const match = productsQuery.data?.find((p) => p.category.slug === slug)?.images[0];
+    return match ? productImage([match]) : FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
+  };
+
+  /* Hero title renders its last word in the accent color */
+  const heroWords = content(
+    "hero_title",
+    `${t("hero_title_1")} ${t("hero_title_2")}`
+  ).split(" ");
+  const heroLead = heroWords.slice(0, -1).join(" ");
+  const heroAccent = heroWords[heroWords.length - 1];
+
+  const productsPending = productsQuery.isPending;
 
   return (
     <main>
@@ -45,11 +195,12 @@ export default function Home() {
         <div className="relative z-10 w-full max-w-screen-2xl mx-auto px-6 md:px-12 flex-1 flex items-center justify-start">
           <div className="max-w-2xl text-left text-white reveal">
             <h1 className="font-serif font-medium text-5xl md:text-[5.5rem] leading-[1.1] mb-6 tracking-tight uppercase">
-              <span>{t("hero_title_1")}</span> <span className="text-[#F29F86]">{t("hero_title_2")}</span>
+              {heroLead && <span>{heroLead} </span>}
+              <span className="text-[#F29F86]">{heroAccent}</span>
             </h1>
 
             <p className="text-white/90 text-sm md:text-lg leading-relaxed mb-10 max-w-xl font-medium">
-              {t("hero_desc")}
+              {content("hero_desc", t("hero_desc"))}
             </p>
 
             <div className="flex flex-col sm:flex-row items-start justify-start gap-4">
@@ -152,97 +303,55 @@ export default function Home() {
           </h2>
         </div>
         <div className="max-w-screen-2xl mx-auto px-6 md:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
-            {/* Card 1 */}
-            <div className="relative overflow-hidden rounded-[32px] aspect-[4/5] group cursor-pointer reveal">
-              {/* Background Image */}
-              <img
-                src="/images/bangkok-mango-beetroot-1.png"
-                alt="Chili Lime Mango Bites"
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
-              />
-
-              {/* Dark Gradient Overlay for text readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-
-              {/* Content */}
-              <div className="absolute bottom-0 left-0 w-full p-8 md:p-10 text-white">
-                <h2 className="text-lg xl:text-xl font-serif font-medium mb-3 tracking-tight leading-snug pr-4">
-                  THAI MANGO CHILI LIME MANGO BITES (100G)
-                </h2>
-                <p className="text-[13px] text-white/80 line-clamp-2 mb-8 font-medium max-w-sm pr-4">
-                  Sweet, sour and spicy all at once — sun-dried mango tossed in Thai chili and lime for that street-vendor kick.
-                </p>
-
-                <Link href="/product-detail" className="inline-flex items-center gap-3 text-[10px] tracking-widest uppercase font-bold group-hover:text-white transition duration-300">
-                  <span className="border-b border-white pb-0.5">Discover More</span>
-                  <span className="w-7 h-7 rounded-full border border-white/40 flex items-center justify-center group-hover:bg-white/20 transition duration-300">
-                    <ArrowUpRight className="w-3 h-3" />
-                  </span>
-                </Link>
-              </div>
+          {productsPending ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="rounded-[32px] aspect-[4/5] bg-white/70 animate-pulse" />
+              ))}
             </div>
+          ) : showcase.length === 0 ? (
+            <p className="py-16 text-center text-xs uppercase tracking-widest text-muted">
+              No products available yet.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+              {showcase.map((product, i) => (
+                <Link
+                  key={product.id}
+                  href={`/product-detail/${product.slug}`}
+                  className="relative overflow-hidden rounded-[32px] aspect-[4/5] group cursor-pointer reveal block"
+                  style={i > 0 ? { transitionDelay: `${i * 200}ms` } : undefined}
+                >
+                  {/* Background Image */}
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105 bg-[#F7F4EE]"
+                  />
 
-            {/* Card 2 */}
-            <div className="relative overflow-hidden rounded-[32px] aspect-[4/5] group cursor-pointer reveal" style={{ transitionDelay: "200ms" }}>
-              {/* Background Image */}
-              <img
-                src="/images/bangkok-mango-beetroot-1.png"
-                alt="Honey Glazed Mango Slices"
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105 bg-[#F7F4EE]"
-              />
+                  {/* Dark Gradient Overlay for text readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
 
-              {/* Dark Gradient Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                  {/* Content */}
+                  <div className="absolute bottom-0 left-0 w-full p-8 md:p-10 text-white">
+                    <h2 className="text-lg xl:text-xl font-serif font-medium mb-3 tracking-tight leading-snug pr-4 uppercase">
+                      {product.name}
+                    </h2>
+                    <p className="text-[13px] text-white/80 line-clamp-2 mb-8 font-medium max-w-sm pr-4">
+                      {product.desc}
+                    </p>
 
-              {/* Content */}
-              <div className="absolute bottom-0 left-0 w-full p-8 md:p-10 text-white">
-                <h2 className="text-lg xl:text-xl font-serif font-medium mb-3 tracking-tight leading-snug pr-4">
-                  THAI MANGO HONEY GLAZED SLICES (150G)
-                </h2>
-                <p className="text-[13px] text-white/80 line-clamp-2 mb-8 font-medium max-w-sm pr-4">
-                  Soft, glossy mango slices finished with a delicate wildflower honey glaze for extra chew and shine.
-                </p>
-
-                <Link href="/product-detail" className="inline-flex items-center gap-3 text-[10px] tracking-widest uppercase font-bold group-hover:text-white transition duration-300">
-                  <span className="border-b border-white pb-0.5">Discover More</span>
-                  <span className="w-7 h-7 rounded-full border border-white/40 flex items-center justify-center group-hover:bg-white/20 transition duration-300">
-                    <ArrowUpRight className="w-3 h-3" />
-                  </span>
+                    <span className="inline-flex items-center gap-3 text-[10px] tracking-widest uppercase font-bold group-hover:text-white transition duration-300">
+                      <span className="border-b border-white pb-0.5">{t("discover_more")}</span>
+                      <span className="w-7 h-7 rounded-full border border-white/40 flex items-center justify-center group-hover:bg-white/20 transition duration-300">
+                        <ArrowUpRight className="w-3 h-3" />
+                      </span>
+                    </span>
+                  </div>
                 </Link>
-              </div>
+              ))}
             </div>
-
-            {/* Card 3 */}
-            <div className="relative overflow-hidden rounded-[32px] aspect-[4/5] group cursor-pointer reveal" style={{ transitionDelay: "400ms" }}>
-              {/* Background Image */}
-              <img
-                src="/images/bangkok-mango-beetroot-2.png"
-                alt="Mango Beetroot Fusion Chews"
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
-              />
-
-              {/* Dark Gradient Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-
-              {/* Content */}
-              <div className="absolute bottom-0 left-0 w-full p-8 md:p-10 text-white">
-                <h2 className="text-lg xl:text-xl font-serif font-medium mb-3 tracking-tight leading-snug pr-4">
-                  THAI MANGO BEETROOT FUSION CHEWS (100G)
-                </h2>
-                <p className="text-[13px] text-white/80 line-clamp-2 mb-8 font-medium max-w-sm pr-4">
-                  Dried mango infused with natural beetroot for a vibrant ruby hue, gentle earthy sweetness, and a boost of antioxidants.
-                </p>
-
-                <Link href="/product-detail" className="inline-flex items-center gap-3 text-[10px] tracking-widest uppercase font-bold group-hover:text-white transition duration-300">
-                  <span className="border-b border-white pb-0.5">Discover More</span>
-                  <span className="w-7 h-7 rounded-full border border-white/40 flex items-center justify-center group-hover:bg-white/20 transition duration-300">
-                    <ArrowUpRight className="w-3 h-3" />
-                  </span>
-                </Link>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </section>
 
@@ -264,43 +373,47 @@ export default function Home() {
           </div>
 
           {/* Banner Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-            {/* Card 1: Spiced & Zesty */}
-            <Link href="/shop?category=Spiced+%26+Zesty" className="relative overflow-hidden rounded-[32px] aspect-[4/3] md:aspect-[16/9] lg:aspect-[2/1] group block reveal">
-              <img src="/images/bangkok-mango-beetroot-1.png" alt="Spiced & Zesty Category" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-              <div className="absolute bottom-0 left-0 p-8 md:p-10 z-10 w-full">
-                <span className="block text-[#F29F86] text-[10px] md:text-xs tracking-[0.2em] font-bold uppercase mb-2">Selection</span>
-                <h3 className="text-white text-3xl md:text-4xl font-serif font-medium uppercase tracking-tight">Spiced &amp; Zesty</h3>
+          {categoriesQuery.isPending ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+              {[0, 1].map((i) => (
+                <div key={i} className="rounded-[32px] aspect-[4/3] md:aspect-[16/9] lg:aspect-[2/1] bg-white/70 animate-pulse" />
+              ))}
+            </div>
+          ) : rootCategories.length === 0 ? (
+            <p className="py-16 text-center text-xs uppercase tracking-widest text-muted">
+              No categories available yet.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+              {rootCategories.map((category, i) => (
+                <Link
+                  key={category.slug}
+                  href={`/shop?category=${encodeURIComponent(category.slug)}`}
+                  className="relative overflow-hidden rounded-[32px] aspect-[4/3] md:aspect-[16/9] lg:aspect-[2/1] group block reveal"
+                  style={i > 0 ? { transitionDelay: `${(i % 2) * 200}ms` } : undefined}
+                >
+                  <img
+                    src={categoryImage(category.slug, i)}
+                    alt={`${category.name_en} Category`}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                  <div className="absolute bottom-0 left-0 p-8 md:p-10 z-10 w-full">
+                    <span className="block text-[#F29F86] text-[10px] md:text-xs tracking-[0.2em] font-bold uppercase mb-2">Selection</span>
+                    <h3 className="text-white text-3xl md:text-4xl font-serif font-medium uppercase tracking-tight">{category.name_en}</h3>
 
-                {/* Hover Button */}
-                <div className="flex items-center gap-3 mt-6 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 delay-100">
-                  <span className="text-white text-[10px] md:text-xs tracking-[0.2em] uppercase font-bold">Explore Flavors</span>
-                  <span className="w-8 h-8 rounded-full border border-white/40 flex items-center justify-center group-hover:border-white transition duration-300">
-                    <ArrowRight className="w-4 h-4 text-white" />
-                  </span>
-                </div>
-              </div>
-            </Link>
-
-            {/* Card 2: Fusion Blends */}
-            <Link href="/shop?category=Fusion+Blends" className="relative overflow-hidden rounded-[32px] aspect-[4/3] md:aspect-[16/9] lg:aspect-[2/1] group block reveal" style={{ transitionDelay: "200ms" }}>
-              <img src="/images/bangkok-mango-beetroot-2.png" alt="Fusion Blends Category" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-              <div className="absolute bottom-0 left-0 p-8 md:p-10 z-10 w-full">
-                <span className="block text-[#F29F86] text-[10px] md:text-xs tracking-[0.2em] font-bold uppercase mb-2">Selection</span>
-                <h3 className="text-white text-3xl md:text-4xl font-serif font-medium uppercase tracking-tight">Fusion Blends</h3>
-
-                {/* Hover Button */}
-                <div className="flex items-center gap-3 mt-6 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 delay-100">
-                  <span className="text-white text-[10px] md:text-xs tracking-[0.2em] uppercase font-bold">Explore Flavors</span>
-                  <span className="w-8 h-8 rounded-full border border-white/40 flex items-center justify-center group-hover:border-white transition duration-300">
-                    <ArrowRight className="w-4 h-4 text-white" />
-                  </span>
-                </div>
-              </div>
-            </Link>
-          </div>
+                    {/* Hover Button */}
+                    <div className="flex items-center gap-3 mt-6 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 delay-100">
+                      <span className="text-white text-[10px] md:text-xs tracking-[0.2em] uppercase font-bold">Explore Flavors</span>
+                      <span className="w-8 h-8 rounded-full border border-white/40 flex items-center justify-center group-hover:border-white transition duration-300">
+                        <ArrowRight className="w-4 h-4 text-white" />
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -322,160 +435,99 @@ export default function Home() {
           </div>
 
           {/* Product Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
-            {/* Card 1 */}
-            <div className="bg-white rounded-[24px] overflow-hidden shadow-sm group cursor-pointer reveal">
-              <div className="relative aspect-[4/3] overflow-hidden">
-                <img src="/images/bangkok-mango-beetroot-1.png" alt="Thai Mango Chili Lime Bites" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" />
-
-                {/* Badges */}
-                <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-                  <span className="bg-[#F29F86] text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">Best Seller</span>
-                  <span className="bg-[#0A1118] text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">New Arrival</span>
-                </div>
-                <span className="absolute top-3 right-3 bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full z-10">-13%</span>
-
-                {/* Quick Add */}
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    addToCart({
-                      name: "Thai Mango Chili Lime Bites",
-                      price: 390,
-                      image: "/images/bangkok-mango-beetroot-1.png",
-                    });
-                  }}
-                  className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-white flex items-center justify-center text-accent shadow-md z-10 hover:bg-accent hover:text-white transition"
-                  aria-label="Add to cart"
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="p-6">
-                <h3 className="text-sm md:text-base font-serif font-semibold uppercase tracking-tight text-[#0A1118] mb-2 truncate">Thai Mango Chili Lime Bites</h3>
-                <p className="text-[13px] text-muted line-clamp-2 mb-4 leading-relaxed">Sun-dried mango tossed in Thai chili and lime for a sweet, sour, spicy kick in every bite.</p>
-
-                <div className="flex flex-wrap gap-2 mb-5">
-                  <span className="text-[9px] tracking-widest uppercase font-bold text-accent bg-[#FDF1EA] px-3 py-1.5 rounded-full">Spiced &amp; Zesty</span>
-                </div>
-
-                <div className="flex items-end justify-between pt-4 border-t border-cream">
-                  <div>
-                    <span className="block text-xs text-muted line-through">₹450</span>
-                    <span className="text-lg font-bold text-[#F29F86]">₹390</span>
-                  </div>
-                  <Link href="/product-detail" className="inline-flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-[#0A1118] group-hover:text-accent transition">
-                    Explore
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
+          {productsPending ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="rounded-[24px] aspect-[4/5] bg-white/70 animate-pulse" />
+              ))}
             </div>
-
-            {/* Card 2 */}
-            <div className="bg-white rounded-[24px] overflow-hidden shadow-sm group cursor-pointer reveal" style={{ transitionDelay: "200ms" }}>
-              <div className="relative aspect-[4/3] overflow-hidden bg-[#FCE9D8]">
-                <img src="/images/bangkok-mango-beetroot-2.png" alt="Thai Mango Discovery Gift Box" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" />
-
-                {/* Badges */}
-                <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-                  <span className="bg-[#F29F86] text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">Best Seller</span>
-                  <span className="bg-[#0A1118] text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">New Arrival</span>
-                </div>
-                <span className="absolute top-3 right-3 bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full z-10">-17%</span>
-
-                {/* Quick Add */}
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    addToCart({
-                      name: "Thai Mango Discovery Gift Box",
-                      price: 1450,
-                      image: "/images/bangkok-mango-beetroot-2.png",
-                    });
-                  }}
-                  className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-white flex items-center justify-center text-accent shadow-md z-10 hover:bg-accent hover:text-white transition"
-                  aria-label="Add to cart"
+          ) : collections.length === 0 ? (
+            <p className="py-16 text-center text-xs uppercase tracking-widest text-muted">
+              No products available yet.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+              {collections.map((product, i) => (
+                <div
+                  key={product.id}
+                  className="bg-white rounded-[24px] overflow-hidden shadow-sm group cursor-pointer reveal"
+                  style={i > 0 ? { transitionDelay: `${i * 200}ms` } : undefined}
                 >
-                  <ShoppingBag className="w-4 h-4" />
-                </button>
-              </div>
+                  <div className="relative aspect-[4/3] overflow-hidden bg-[#FCE9D8]">
+                    <Link href={`/product-detail/${product.slug}`} className="absolute inset-0">
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
+                      />
+                    </Link>
 
-              <div className="p-6">
-                <h3 className="text-sm md:text-base font-serif font-semibold uppercase tracking-tight text-[#0A1118] mb-2 truncate">Thai Mango Discovery Gift Box</h3>
-                <p className="text-[13px] text-muted line-clamp-2 mb-4 leading-relaxed">Can&apos;t decide? Our discovery box bundles all four Thai Mango flavors in one beautifully packaged set.</p>
+                    {/* Badges */}
+                    {product.badges.length > 0 && (
+                      <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10 pointer-events-none">
+                        {product.badges.map((badge) => (
+                          <span key={badge} className="bg-[#F29F86] text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">
+                            {badge}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {product.discountPct !== undefined && product.discountPct > 0 && (
+                      <span className="absolute top-3 right-3 bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full z-10 pointer-events-none">
+                        -{product.discountPct}%
+                      </span>
+                    )}
 
-                <div className="flex flex-wrap gap-2 mb-5">
-                  <span className="text-[9px] tracking-widest uppercase font-bold text-accent bg-[#FDF1EA] px-3 py-1.5 rounded-full">Gift Sets</span>
-                </div>
-
-                <div className="flex items-end justify-between pt-4 border-t border-cream">
-                  <div>
-                    <span className="block text-xs text-muted line-through">₹1,750</span>
-                    <span className="text-lg font-bold text-[#F29F86]">₹1,450</span>
+                    {/* Quick Add */}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        addToCart({
+                          name: product.name,
+                          price: product.price,
+                          image: product.image,
+                        });
+                      }}
+                      className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-white flex items-center justify-center text-accent shadow-md z-10 hover:bg-accent hover:text-white transition"
+                      aria-label="Add to cart"
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                    </button>
                   </div>
-                  <Link href="/product-detail" className="inline-flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-[#0A1118] group-hover:text-accent transition">
-                    Explore
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
-            </div>
 
-            {/* Card 3 */}
-            <div className="bg-white rounded-[24px] overflow-hidden shadow-sm group cursor-pointer reveal" style={{ transitionDelay: "400ms" }}>
-              <div className="relative aspect-[4/3] overflow-hidden">
-                <img src="/images/bangkok-mango-beetroot-1.png" alt="Thai Mango Beetroot Fusion Chews" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" />
+                  <div className="p-6">
+                    <h3 className="text-sm md:text-base font-serif font-semibold uppercase tracking-tight text-[#0A1118] mb-2 truncate">
+                      <Link href={`/product-detail/${product.slug}`}>{product.name}</Link>
+                    </h3>
+                    <p className="text-[13px] text-muted line-clamp-2 mb-4 leading-relaxed">{product.desc}</p>
 
-                {/* Badges */}
-                <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-                  <span className="bg-[#F29F86] text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">Best Seller</span>
-                  <span className="bg-[#0A1118] text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">New Arrival</span>
-                </div>
-                <span className="absolute top-3 right-3 bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full z-10">-8%</span>
+                    <div className="flex flex-wrap gap-2 mb-5">
+                      <span className="text-[9px] tracking-widest uppercase font-bold text-accent bg-[#FDF1EA] px-3 py-1.5 rounded-full">
+                        {product.categoryName}
+                      </span>
+                    </div>
 
-                {/* Quick Add */}
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    addToCart({
-                      name: "Thai Mango Beetroot Fusion Chews",
-                      price: 410,
-                      image: "/images/bangkok-mango-beetroot-1.png",
-                    });
-                  }}
-                  className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-white flex items-center justify-center text-accent shadow-md z-10 hover:bg-accent hover:text-white transition"
-                  aria-label="Add to cart"
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="p-6">
-                <h3 className="text-sm md:text-base font-serif font-semibold uppercase tracking-tight text-[#0A1118] mb-2 truncate">Thai Mango Beetroot Fusion Chews</h3>
-                <p className="text-[13px] text-muted line-clamp-2 mb-4 leading-relaxed">Dried mango infused with natural beetroot for a vibrant hue and gentle earthy sweetness.</p>
-
-                <div className="flex flex-wrap gap-2 mb-5">
-                  <span className="text-[9px] tracking-widest uppercase font-bold text-accent bg-[#FDF1EA] px-3 py-1.5 rounded-full">Fusion Blends</span>
-                </div>
-
-                <div className="flex items-end justify-between pt-4 border-t border-cream">
-                  <div>
-                    <span className="block text-xs text-muted line-through">₹450</span>
-                    <span className="text-lg font-bold text-[#F29F86]">₹410</span>
+                    <div className="flex items-end justify-between pt-4 border-t border-cream">
+                      <div>
+                        {product.comparePriceDisplay && (
+                          <span className="block text-xs text-muted line-through">{product.comparePriceDisplay}</span>
+                        )}
+                        <span className="text-lg font-bold text-[#F29F86]">{product.priceDisplay}</span>
+                      </div>
+                      <Link
+                        href={`/product-detail/${product.slug}`}
+                        className="inline-flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-[#0A1118] group-hover:text-accent transition"
+                      >
+                        Explore
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
                   </div>
-                  <Link href="/product-detail" className="inline-flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-[#0A1118] group-hover:text-accent transition">
-                    Explore
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
                 </div>
-              </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
       </section>
 
@@ -494,7 +546,10 @@ export default function Home() {
               <span className="text-[10px] tracking-[0.3em] uppercase text-accent font-bold block mb-4">The Visionary</span>
               <h2 className="font-serif text-4xl md:text-5xl mb-6">Our Founder</h2>
               <blockquote className="border-l-2 border-accent pl-5 italic text-muted text-base md:text-lg mb-10 max-w-xl mx-auto lg:mx-0">
-                &quot;Thai Mango was created to bring my family&apos;s three generations of orchard craft to the world — mango dried the way my grandmother did it, with nothing added and nothing hidden.&quot;
+                &quot;{content(
+                  "founder_quote",
+                  "Thai Mango was created to bring my family's three generations of orchard craft to the world — mango dried the way my grandmother did it, with nothing added and nothing hidden."
+                )}&quot;
               </blockquote>
 
               <div className="grid grid-cols-2 gap-8 mb-10 max-w-md mx-auto lg:mx-0">
@@ -533,7 +588,12 @@ export default function Home() {
         <div className="max-w-screen-2xl mx-auto px-6 md:px-12">
           <div className="mb-10 reveal">
             <h2 className="text-2xl md:text-3xl font-serif font-normal text-[#334155] mb-2">Mango Moments</h2>
-            <p className="text-muted text-sm md:text-base">Join our community of mango lovers. Share your snacking moments with #THAIMANGOMOMENTS.</p>
+            <p className="text-muted text-sm md:text-base">
+              {content(
+                "community_intro",
+                "Join our community of mango lovers. Share your snacking moments with #THAIMANGOMOMENTS."
+              )}
+            </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-2 gap-4 lg:h-[600px]">
@@ -603,7 +663,9 @@ export default function Home() {
 
         <div className="relative z-10 text-center text-ivory max-w-3xl px-6 reveal">
           <span className="inline-block text-[10px] tracking-[0.3em] uppercase font-bold border border-ivory/30 rounded-full px-5 py-2 mb-8">Our Heritage</span>
-          <h2 className="font-serif font-medium text-4xl md:text-6xl lg:text-7xl uppercase leading-[1.1] mb-12 tracking-tight">A Legacy of<br />Golden Orchards</h2>
+          <h2 className="font-serif font-medium text-4xl md:text-6xl lg:text-7xl uppercase leading-[1.1] mb-12 tracking-tight max-w-2xl mx-auto">
+            {content("heritage_title", "A Legacy of Golden Orchards")}
+          </h2>
 
           <button className="w-20 h-20 rounded-full border border-ivory flex items-center justify-center mx-auto hover:bg-ivory hover:text-charcoal transition duration-500 play-pulse group" aria-label="Play video">
             <Play className="w-6 h-6 ml-1 fill-current" />
@@ -618,7 +680,12 @@ export default function Home() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-14 reveal gap-6">
             <div>
               <h2 className="text-2xl md:text-3xl font-serif font-normal text-[#334155] uppercase mb-3">The Edit</h2>
-              <p className="text-muted text-sm md:text-base max-w-xl">Dive into our curated world of snacking rituals, orchard heritage, and mango know-how.</p>
+              <p className="text-muted text-sm md:text-base max-w-xl">
+                {content(
+                  "journal_intro",
+                  "Dive into our curated world of snacking rituals, orchard heritage, and mango know-how."
+                )}
+              </p>
             </div>
             <Link href="/rituals" className="inline-flex items-center justify-center px-6 py-3.5 bg-[#0A1118] text-white text-[10px] md:text-xs tracking-[0.15em] uppercase hover:bg-accent transition duration-300 rounded-full font-bold shadow-md shrink-0">
               View Journal
@@ -702,7 +769,12 @@ export default function Home() {
         <div className="w-full lg:w-1/2 bg-accent flex items-center p-8 md:p-16">
           <div className="max-w-lg">
             <h2 className="text-ivory text-2xl md:text-3xl font-serif font-bold uppercase tracking-tight mb-5">Your Mango Flavor Expert</h2>
-            <p className="text-ivory/90 text-sm md:text-base leading-relaxed mb-8">Tell us your taste preferences — sweet, spicy, tangy, or classic — and we&apos;ll point you toward the flavors that fit, or connect you with our team for bulk and gifting orders.</p>
+            <p className="text-ivory/90 text-sm md:text-base leading-relaxed mb-8">
+              {content(
+                "expert_intro",
+                "Tell us your taste preferences — sweet, spicy, tangy, or classic — and we'll point you toward the flavors that fit, or connect you with our team for bulk and gifting orders."
+              )}
+            </p>
 
             <form
               className="flex flex-col sm:flex-row gap-3 mb-6"

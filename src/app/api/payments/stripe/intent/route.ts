@@ -3,14 +3,24 @@ import Stripe from "stripe";
 import { ApiResponse, ApiError } from "@/helper/apiResponse";
 import { computeOrderAmount } from "@/helper/orderAmount";
 import { checkoutPayloadSchema } from "@/schemas/payment.schema";
+import { getStoreSettings, resolveGatewayCredentials } from "@/lib/storeSettings";
+import { CURRENCIES } from "@/lib/currency";
 
 export async function POST(req: Request) {
     try {
-        const secretKey = process.env.STRIPE_SECRET_KEY;
-        if (!secretKey) {
-            const apiError = new ApiError(503, "Stripe is not configured.");
+        /* Keys come from admin Settings, falling back to .env. */
+        const settings = await getStoreSettings();
+        const { stripe: stripeCreds } = resolveGatewayCredentials(settings);
+        if (!stripeCreds.enabled) {
+            const apiError = new ApiError(
+                503,
+                stripeCreds.configured
+                    ? "Stripe is turned off."
+                    : "Stripe is not configured."
+            );
             return NextResponse.json(apiError, { status: apiError.statusCode });
         }
+        const secretKey = stripeCreds.secretKey;
 
         const parsed = checkoutPayloadSchema.safeParse(await req.json());
         if (!parsed.success) {
@@ -18,17 +28,21 @@ export async function POST(req: Request) {
             return NextResponse.json(apiError, { status: apiError.statusCode });
         }
 
-        const { amountPaise } = computeOrderAmount(parsed.data);
-        // Stripe's minimum charge for INR is ₹0.50 (50 paise).
-        if (amountPaise < 50) {
+        /* Currency and amount are resolved from the visitor's location and the
+           live FX rate — the same values the storefront displayed. */
+        const { currency, amountMinor } = await computeOrderAmount(
+            parsed.data,
+            req.headers
+        );
+        if (amountMinor < CURRENCIES[currency].minChargeMinor) {
             const apiError = new ApiError(400, "Order total is too low to process.");
             return NextResponse.json(apiError, { status: apiError.statusCode });
         }
 
         const stripe = new Stripe(secretKey);
         const intent = await stripe.paymentIntents.create({
-            amount: amountPaise,
-            currency: "inr",
+            amount: amountMinor,
+            currency: currency.toLowerCase(),
             automatic_payment_methods: { enabled: true },
             description: "Thai Mango order",
             receipt_email: parsed.data.customer?.email,

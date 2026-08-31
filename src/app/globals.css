@@ -47,6 +47,17 @@
 }
 
 /* Tailwind v3 (CDN) compatibility — the approved design was built against v3 defaults */
+
+/* v4 dropped the max-w-screen-* utilities. Every page container in the approved
+   design uses max-w-screen-2xl, so without this they stretch to the full viewport
+   and everything inside them (product imagery especially) renders oversized.
+   96rem is the v3 screens.2xl value. */
+@layer utilities {
+  .max-w-screen-2xl {
+    max-width: 96rem;
+  }
+}
+
 @layer base {
   *,
   ::after,

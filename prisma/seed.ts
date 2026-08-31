@@ -17,6 +17,13 @@ const CATEGORY_DEFAULTS = [
 const SITE_CONTENT_DEFAULTS = [
     { id: "announcement", section: "Announcement Bar", location: "All pages", content: "Welcome to Thai Mango — Enjoy 15% off your first order" },
     { id: "hero", section: "Homepage Hero", location: "Home", content: "THAI MANGO — Where orchard tradition meets modern craft." },
+    { id: "hero_title", section: "Hero Title", location: "Home", content: "THAI MANGO" },
+    { id: "hero_desc", section: "Hero Description", location: "Home", content: "Where orchard tradition meets modern craft. Discover naturally sun-dried mango, hand-selected in Thailand for timeless tropical sweetness." },
+    { id: "founder_quote", section: "Founder Quote", location: "Home", content: "Thai Mango was created to bring my family's three generations of orchard craft to the world — mango dried the way my grandmother did it, with nothing added and nothing hidden." },
+    { id: "community_intro", section: "Mango Moments Intro", location: "Home", content: "Join our community of mango lovers. Share your snacking moments with #THAIMANGOMOMENTS." },
+    { id: "heritage_title", section: "Heritage Film Title", location: "Home", content: "A Legacy of Golden Orchards" },
+    { id: "journal_intro", section: "Journal Intro", location: "Home", content: "Dive into our curated world of snacking rituals, orchard heritage, and mango know-how." },
+    { id: "expert_intro", section: "Flavor Expert Intro", location: "Home", content: "Tell us your taste preferences — sweet, spicy, tangy, or classic — and we'll point you toward the flavors that fit, or connect you with our team for bulk and gifting orders." },
     { id: "story", section: "Our Story", location: "About", content: "Sun-ripened in Thailand, sun-dried the traditional way." },
     { id: "ingredients", section: "Ingredients", location: "Ingredients", content: "100% Thai natural ingredients — mango, chili, honey, beetroot." },
     { id: "faq", section: "FAQ", location: "FAQ", content: "9 questions across Ingredients, Snacks and Shipping." },

@@ -1,4 +1,13 @@
-export default function ShippingPolicyPage() {
+import { baseCurrencyOf, getStoreSettings } from "@/lib/storeSettings";
+import { formatMoney } from "@/lib/currency";
+
+export const dynamic = "force-dynamic";
+
+export default async function ShippingPolicyPage() {
+  const settings = await getStoreSettings();
+  const base = baseCurrencyOf(settings);
+  const freeAbove = formatMoney(settings.free_shipping_above, base);
+  const flatRate = formatMoney(settings.standard_shipping, base);
   return (
     <main className="py-16 md:py-24">
       <div className="max-w-4xl mx-auto px-6">
@@ -15,8 +24,8 @@ export default function ShippingPolicyPage() {
           <section>
             <h2 className="font-serif text-2xl text-charcoal mb-3">2. Shipping Charges</h2>
             <ul className="list-disc pl-5 space-y-2">
-              <li><strong>Free Standard Delivery:</strong> On all orders above ₹1,500.</li>
-              <li><strong>Standard Flat Rate:</strong> ₹99 on orders under ₹1,500.</li>
+              <li><strong>Free Standard Delivery:</strong> On all orders above {freeAbove}.</li>
+              <li><strong>Standard Flat Rate:</strong> {flatRate} on orders under {freeAbove}.</li>
               <li><strong>Cash on Delivery:</strong> Available with no additional surcharge.</li>
             </ul>
           </section>

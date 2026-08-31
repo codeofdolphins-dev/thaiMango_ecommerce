@@ -96,7 +96,7 @@ model Product {
 
 model ProductVariant {
   id               Int     @id @default(autoincrement())
-  product_id       String  @unique
+  product_id       String
   label            String
   weight_grams     Int
   sku              String  @unique
@@ -104,9 +104,11 @@ model ProductVariant {
   compare_at_price Decimal @db.Decimal(10, 2)
   stock            Int     @default(0)
   is_default       Boolean @default(false)
+  position         Int     @default(0)
 
   product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
 
+  @@unique([product_id, label])
   @@index([product_id])
 }
 

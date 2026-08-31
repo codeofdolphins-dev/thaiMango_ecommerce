@@ -6,12 +6,16 @@ import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Eye } from "lucide-react";
 import { useStore } from "@/components/public/store";
+import { defaultVariant, minPrice } from "@/lib/variants";
+import { productImage } from "@/lib/images";
 
 interface ApiVariant {
   label: string;
   weight_grams: number;
   price: string;
   compare_at_price: string;
+  stock: number;
+  is_default: boolean;
 }
 
 interface ApiProduct {
@@ -22,7 +26,7 @@ interface ApiProduct {
   images: string[];
   highlights: string[];
   category: { slug: string; name_en: string };
-  productVariant: ApiVariant | null;
+  productVariant: ApiVariant[];
 }
 
 interface ApiCategory {
@@ -32,8 +36,7 @@ interface ApiCategory {
 
 const BADGE_CLASS =
   "bg-charcoal text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm";
-const PLACEHOLDER_IMAGE = "/images/logo.png";
-const formatPrice = (value: string) => `₹${Number(value).toLocaleString("en-IN")}`;
+type PriceFormatter = (value: number) => string;
 
 
 /* Reads ?category= inside its own Suspense boundary so the catalog itself
@@ -67,32 +70,43 @@ interface ViewProduct {
   price: number;
   priceDisplay: string;
   comparePrice?: string;
+  variantCount: number;
 }
 
-function mapProduct(p: ApiProduct): ViewProduct {
-  const variant = p.productVariant;
+function mapProduct(p: ApiProduct, formatPrice: PriceFormatter): ViewProduct {
+  /* Cards show the default variant; "from <price>" when cheaper sizes exist. */
+  const variant = defaultVariant(p.productVariant);
+  const lowest = minPrice(p.productVariant);
   const price = variant ? Number(variant.price) : 0;
   const compareAt = variant ? Number(variant.compare_at_price) : 0;
+  const hasCheaper = lowest !== null && lowest < price;
   return {
     id: p.id,
     slug: p.slug,
     categorySlug: p.category.slug,
     categoryName: p.category.name_en,
-    image: p.images[0] ?? PLACEHOLDER_IMAGE,
+    image: productImage(p.images),
     alt: p.name_en,
     badges: p.highlights.slice(0, 2),
     weight: variant ? `${variant.weight_grams}G ${variant.label}` : "",
     name: p.name_en,
     desc: p.description_en,
-    price,
-    priceDisplay: variant ? formatPrice(variant.price) : "—",
+    price: hasCheaper ? lowest : price,
+    priceDisplay: !variant
+      ? "—"
+      : hasCheaper
+        ? `From ${formatPrice(lowest)}`
+        : formatPrice(Number(variant.price)),
     comparePrice:
-      variant && compareAt > price ? formatPrice(variant.compare_at_price) : undefined,
+      variant && !hasCheaper && compareAt > price
+        ? formatPrice(Number(variant.compare_at_price))
+        : undefined,
+    variantCount: p.productVariant.length,
   };
 }
 
 function ShopPageContent() {
-  const { addToCart, openQuickView } = useStore();
+  const { addToCart, openQuickView, formatPrice } = useStore();
   const [activeFilter, setActiveFilter] = useState("all");
 
   const categoriesQuery = useQuery({
@@ -120,7 +134,9 @@ function ShopPageContent() {
     ...(categoriesQuery.data ?? []).map((c) => ({ value: c.slug, label: c.name_en })),
   ];
 
-  const allProducts = (productsQuery.data ?? []).map(mapProduct);
+  const allProducts = (productsQuery.data ?? []).map((p) =>
+    mapProduct(p, formatPrice)
+  );
   const visibleProducts = allProducts.filter(
     (p) => activeFilter === "all" || p.categorySlug === activeFilter
   );
@@ -236,6 +252,7 @@ function ShopPageContent() {
                         price: product.priceDisplay,
                         image: product.image,
                         desc: product.desc,
+                        slug: product.slug,
                       })
                     }
                     className="quick-view-btn absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-charcoal shadow hover:bg-accent hover:text-white transition"
@@ -250,7 +267,9 @@ function ShopPageContent() {
                       {product.weight}
                     </span>
                     <h3 className="product-name font-serif text-2xl text-charcoal mb-2 hover:text-accent transition">
-                      <Link href="/product-detail">{product.name}</Link>
+                      <Link href={`/product-detail/${product.slug}`}>
+                        {product.name}
+                      </Link>
                     </h3>
                     <p className="product-desc text-xs text-muted line-clamp-2 leading-relaxed mb-6">
                       {product.desc}

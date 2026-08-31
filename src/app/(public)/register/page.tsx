@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import PhoneField from "@/components/common/PhoneField";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
 import { useStore } from "@/components/public/store";
@@ -29,6 +30,7 @@ export default function RegisterPage() {
     handleSubmit,
     setValue,
     watch,
+    control,
     formState: { errors },
   } = useForm<SignUpValues>({
     resolver: zodResolver(signUpSchema),
@@ -192,12 +194,18 @@ export default function RegisterPage() {
                 <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
                   Phone Number
                 </label>
-                <input
-                  type="tel"
-                  id="reg-phone"
-                  placeholder="+91 98765 43210"
-                  {...register("ph_no")}
-                  className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
+                <Controller
+                  name="ph_no"
+                  control={control}
+                  render={({ field }) => (
+                    <PhoneField
+                      id="reg-phone"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      inputClassName="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/30 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
+                    />
+                  )}
                 />
                 {errors.ph_no && (
                   <p className="text-[11px] text-rose-600 mt-1">{errors.ph_no.message}</p>

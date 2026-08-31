@@ -2,10 +2,13 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { ApiResponse, ApiError } from "@/helper/apiResponse";
 import { razorpayVerifySchema } from "@/schemas/payment.schema";
+import { getStoreSettings, resolveGatewayCredentials } from "@/lib/storeSettings";
 
 export async function POST(req: Request) {
     try {
-        const keySecret = process.env.RAZORPAY_KEY_SECRET;
+        /* Same key source as the order route, so signatures always match. */
+        const { razorpay } = resolveGatewayCredentials(await getStoreSettings());
+        const keySecret = razorpay.keySecret;
         if (!keySecret) {
             const apiError = new ApiError(503, "Razorpay is not configured.");
             return NextResponse.json(apiError, { status: apiError.statusCode });

@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { Card, PageHeader } from "@/components/admin/ui";
 import { categorySchema, CategoryValues } from "@/schemas/category.schema";
+
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
 interface AdminCategory {
   id: number;
@@ -48,8 +56,17 @@ export default function CategoriesPage() {
     register,
     handleSubmit,
     reset,
+    setValue,
+    control,
     formState: { errors },
   } = useForm<CategoryValues>({ resolver: zodResolver(categorySchema) });
+
+  const nameEn = useWatch({ control, name: "name_en" });
+
+  /* Slug is always derived from the English name — the field is read-only. */
+  useEffect(() => {
+    setValue("slug", slugify(nameEn ?? ""), { shouldValidate: true });
+  }, [nameEn, setValue]);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
@@ -165,7 +182,15 @@ export default function CategoriesPage() {
             </div>
             <div>
               <label className={labelCls}>Slug</label>
-              <input className={inputCls} placeholder="classic-cuts" {...register("slug")} />
+              <input
+                className={`${inputCls} bg-stone-50 text-muted cursor-not-allowed`}
+                placeholder="classic-cuts"
+                readOnly
+                {...register("slug")}
+              />
+              <p className="text-[11px] text-muted mt-1">
+                Auto-generated from the English name.
+              </p>
               {errors.slug && (
                 <p className="text-[11px] text-rose-600 mt-1">{errors.slug.message}</p>
               )}

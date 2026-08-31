@@ -19,11 +19,6 @@ import {
   X,
 } from "lucide-react";
 import { useStore } from "@/components/public/store";
-import {
-  formatPrice,
-  FREE_SHIPPING_THRESHOLD,
-  STANDARD_SHIPPING,
-} from "@/lib/site-data";
 
 type PromoMessage = { text: string; type: "success" | "error" };
 
@@ -37,6 +32,10 @@ export default function CartPage() {
     totalItems,
     showToast,
     mounted,
+    formatPrice,
+    freeShippingThreshold,
+    standardShipping,
+    taxRate,
   } = useStore();
   const router = useRouter();
 
@@ -64,21 +63,21 @@ export default function CartPage() {
     } catch {}
   }, [mounted]);
 
-  const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
+  const remaining = Math.max(0, freeShippingThreshold - subtotal);
   const percent = Math.min(
     100,
-    Math.round((subtotal / FREE_SHIPPING_THRESHOLD) * 100)
+    Math.round((subtotal / freeShippingThreshold) * 100)
   );
   const shippingCost =
-    subtotal >= FREE_SHIPPING_THRESHOLD || subtotal === 0
+    subtotal >= freeShippingThreshold || subtotal === 0
       ? 0
-      : STANDARD_SHIPPING;
+      : standardShipping;
   const discountAmount = Math.round(subtotal * couponDiscount);
   const total = Math.max(
     0,
     subtotal - discountAmount + (subtotal > 0 ? shippingCost : 0)
   );
-  const gstAmount = Math.round(subtotal * 0.18);
+  const gstAmount = Math.round(subtotal * taxRate);
 
   const handleApplyPromo = () => {
     const code = promoInput.trim().toUpperCase();

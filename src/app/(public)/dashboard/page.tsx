@@ -18,6 +18,9 @@ import {
   X,
 } from "lucide-react";
 import { useStore } from "@/components/public/store";
+import { defaultVariant } from "@/lib/variants";
+import { productImage } from "@/lib/images";
+import PhoneField from "@/components/common/PhoneField";
 
 type TabKey =
   | "overview"
@@ -60,7 +63,7 @@ interface ShopProduct {
   name_en: string;
   description_en: string;
   images: string[];
-  productVariant: { price: string } | null;
+  productVariant: { label: string; price: string; is_default: boolean; stock: number }[];
 }
 
 const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
@@ -110,6 +113,7 @@ export default function DashboardPage() {
     logout,
     showToast,
     authLoading,
+    formatPrice,
   } = useStore();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -524,14 +528,14 @@ export default function DashboardPage() {
             )}
 
             {/* Curated Flavor Recommendation (first live product from the catalog) */}
-            {recommended && recommended.productVariant && (
+            {recommended && defaultVariant(recommended.productVariant) && (
               <div>
                 <h3 className="font-serif text-xl text-charcoal mb-4">
                   From The Catalog
                 </h3>
                 <div className="p-6 rounded-3xl bg-ivory border border-cream flex flex-col sm:flex-row items-center gap-6">
                   <img
-                    src={recommended.images[0] ?? "/images/logo.png"}
+                    src={productImage(recommended.images)}
                     alt={recommended.name_en}
                     className="w-24 h-24 object-cover rounded-2xl bg-white shadow-sm shrink-0"
                   />
@@ -550,13 +554,19 @@ export default function DashboardPage() {
                     onClick={() =>
                       addToCart({
                         name: recommended.name_en,
-                        price: Number(recommended.productVariant?.price ?? 0),
-                        image: recommended.images[0] ?? "/images/logo.png",
+                        price: Number(
+                          defaultVariant(recommended.productVariant)?.price ?? 0
+                        ),
+                        image: productImage(recommended.images),
+                        size: defaultVariant(recommended.productVariant)?.label,
                       })
                     }
                     className="add-to-cart px-6 py-3 bg-charcoal text-white rounded-full text-xs uppercase tracking-widest font-bold hover:bg-accent transition shrink-0"
                   >
-                    Add to Bag • ₹{Number(recommended.productVariant.price)}
+                    Add to Bag •{" "}
+                    {formatPrice(
+                      Number(defaultVariant(recommended.productVariant)?.price ?? 0)
+                    )}
                   </button>
                 </div>
               </div>
@@ -628,7 +638,7 @@ export default function DashboardPage() {
                       >
                         <div className="flex items-center gap-4">
                           <img
-                            src={item.product?.images[0] ?? "/images/logo.png"}
+                            src={productImage(item.product?.images)}
                             alt={item.name}
                             className="w-16 h-16 rounded-xl object-cover bg-white"
                           />
@@ -640,7 +650,7 @@ export default function DashboardPage() {
                               Qty: {item.quantity}
                             </span>
                             <span className="text-xs font-semibold text-accent block mt-1">
-                              ₹{Number(item.price)} ({o.payment === "COD" ? "COD" : "Prepaid"})
+                              {formatPrice(Number(item.price))} ({o.payment === "COD" ? "COD" : "Prepaid"})
                             </span>
                           </div>
                         </div>
@@ -649,7 +659,7 @@ export default function DashboardPage() {
                             addToCart({
                               name: item.name,
                               price: Number(item.price),
-                              image: item.product?.images[0] ?? "/images/logo.png",
+                              image: productImage(item.product?.images),
                             })
                           }
                           className="add-to-cart px-4 py-2 bg-charcoal text-white text-xs uppercase tracking-wider font-bold rounded-full hover:bg-accent transition"
@@ -659,7 +669,7 @@ export default function DashboardPage() {
                       </div>
                     ))}
                     <div className="pt-3 border-t border-cream text-right text-sm font-bold text-charcoal">
-                      Total: ₹{Number(o.total)}
+                      Total: {formatPrice(Number(o.total))}
                     </div>
                   </div>
                 ))
@@ -1048,14 +1058,11 @@ export default function DashboardPage() {
               </div>
               <div>
                 <label className={labelCls}>Phone Number</label>
-                <input
-                  type="tel"
+                <PhoneField
                   required
                   value={profileDraft.ph_no}
-                  onChange={(e) =>
-                    setProfileDraft((d) => ({ ...d, ph_no: e.target.value }))
-                  }
-                  className={inputCls}
+                  onChange={(v) => setProfileDraft((d) => ({ ...d, ph_no: v }))}
+                  inputClassName={inputCls}
                 />
               </div>
               <div className="pt-4 border-t border-cream">

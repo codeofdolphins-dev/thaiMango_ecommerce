@@ -31,7 +31,7 @@ export default function RitualsPage() {
                 <h3 className="font-serif text-2xl mb-2">Snack On the Go</h3>
                 <p className="text-xs text-muted leading-relaxed mb-6">Keep a pouch of Classic Sun-Dried Strips in your bag or desk drawer for a naturally sweet, chewy pick-me-up anytime hunger strikes.</p>
               </div>
-              <Link href="/product-detail" className="text-xs font-bold uppercase tracking-wider text-accent hover:underline">Shop Classic Cuts →</Link>
+              <Link href="/shop" className="text-xs font-bold uppercase tracking-wider text-accent hover:underline">Shop Classic Cuts →</Link>
             </div>
             {/* Step 2 */}
             <div className="p-8 bg-white rounded-[28px] border border-cream shadow-sm flex flex-col justify-between">
@@ -40,7 +40,7 @@ export default function RitualsPage() {
                 <h3 className="font-serif text-2xl mb-2">Pair with Sticky Rice</h3>
                 <p className="text-xs text-muted leading-relaxed mb-6">Serve a few Honey Glazed Slices alongside warm sticky rice for a Thai-style dessert that&apos;s ready in minutes.</p>
               </div>
-              <Link href="/product-detail" className="text-xs font-bold uppercase tracking-wider text-accent hover:underline">Shop Glazed &amp; Sweet →</Link>
+              <Link href="/shop" className="text-xs font-bold uppercase tracking-wider text-accent hover:underline">Shop Glazed &amp; Sweet →</Link>
             </div>
             {/* Step 3 */}
             <div className="p-8 bg-white rounded-[28px] border border-cream shadow-sm flex flex-col justify-between">
@@ -49,7 +49,7 @@ export default function RitualsPage() {
                 <h3 className="font-serif text-2xl mb-2">Toss into Trail Mix</h3>
                 <p className="text-xs text-muted leading-relaxed mb-6">Chop up Chili Lime Bites and fold them into your favorite nuts and seeds for a sweet-sour-spicy trail mix upgrade.</p>
               </div>
-              <Link href="/product-detail" className="text-xs font-bold uppercase tracking-wider text-accent hover:underline">Shop Spiced &amp; Zesty →</Link>
+              <Link href="/shop" className="text-xs font-bold uppercase tracking-wider text-accent hover:underline">Shop Spiced &amp; Zesty →</Link>
             </div>
           </div>
         </div>

@@ -3,15 +3,24 @@ import Razorpay from "razorpay";
 import { ApiResponse, ApiError } from "@/helper/apiResponse";
 import { computeOrderAmount } from "@/helper/orderAmount";
 import { checkoutPayloadSchema } from "@/schemas/payment.schema";
+import { getStoreSettings, resolveGatewayCredentials } from "@/lib/storeSettings";
+import { CURRENCIES } from "@/lib/currency";
 
 export async function POST(req: Request) {
     try {
-        const keyId = process.env.RAZORPAY_KEY_ID;
-        const keySecret = process.env.RAZORPAY_KEY_SECRET;
-        if (!keyId || !keySecret) {
-            const apiError = new ApiError(503, "Razorpay is not configured.");
+        /* Keys come from admin Settings, falling back to .env. */
+        const settings = await getStoreSettings();
+        const { razorpay: razorpayCreds } = resolveGatewayCredentials(settings);
+        if (!razorpayCreds.enabled) {
+            const apiError = new ApiError(
+                503,
+                razorpayCreds.configured
+                    ? "Razorpay is turned off."
+                    : "Razorpay is not configured."
+            );
             return NextResponse.json(apiError, { status: apiError.statusCode });
         }
+        const { keyId, keySecret } = razorpayCreds;
 
         const parsed = checkoutPayloadSchema.safeParse(await req.json());
         if (!parsed.success) {
@@ -19,16 +28,21 @@ export async function POST(req: Request) {
             return NextResponse.json(apiError, { status: apiError.statusCode });
         }
 
-        const { amountPaise } = computeOrderAmount(parsed.data);
-        if (amountPaise < 100) {
+        /* Currency and amount are resolved from the visitor's location and the
+           live FX rate — the same values the storefront displayed. */
+        const { currency, amountMinor } = await computeOrderAmount(
+            parsed.data,
+            req.headers
+        );
+        if (amountMinor < CURRENCIES[currency].minChargeMinor) {
             const apiError = new ApiError(400, "Order total is too low to process.");
             return NextResponse.json(apiError, { status: apiError.statusCode });
         }
 
         const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
         const order = await razorpay.orders.create({
-            amount: amountPaise,
-            currency: "INR",
+            amount: amountMinor,
+            currency,
             receipt: `tm_${Date.now()}`,
             notes: {
                 customer_email: parsed.data.customer?.email ?? "",

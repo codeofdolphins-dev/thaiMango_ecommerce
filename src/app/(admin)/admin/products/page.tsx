@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import Select from "react-select";
-import { formatINR } from "@/components/admin/data";
+import { useMoney } from "@/components/admin/useMoney";
 import { Card, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { compactSelectStyles, SelectOption } from "@/components/admin/selectStyles";
+import { defaultVariant, totalStock } from "@/lib/variants";
+import { productImage } from "@/lib/images";
 
 interface AdminVariant {
   id: number;
@@ -17,6 +19,7 @@ interface AdminVariant {
   price: string;
   compare_at_price: string;
   stock: number;
+  is_default: boolean;
 }
 
 interface AdminProduct {
@@ -26,7 +29,7 @@ interface AdminProduct {
   status: "ACTIVE" | "DRAFT" | "ARCHIVED";
   images: string[];
   category: { id: number; slug: string; name_en: string };
-  productVariant: AdminVariant | null;
+  productVariant: AdminVariant[];
 }
 
 interface AdminCategory {
@@ -56,6 +59,7 @@ async function throwOnError(res: Response) {
 }
 
 export default function ProductsPage() {
+  const { format: money } = useMoney();
   const queryClient = useQueryClient();
   const [categoryId, setCategoryId] = useState<number | "all">("all");
   const [query, setQuery] = useState("");
@@ -114,7 +118,7 @@ export default function ProductsPage() {
     const matchQuery =
       !q ||
       p.name_en.toLowerCase().includes(q) ||
-      (p.productVariant?.sku.toLowerCase().includes(q) ?? false);
+      p.productVariant.some((v) => v.sku.toLowerCase().includes(q));
     return matchCat && matchQuery;
   });
 
@@ -205,7 +209,9 @@ export default function ProductsPage() {
               ) : (
                 <>
                   {rows.map((p) => {
-                    const v = p.productVariant;
+                    const v = defaultVariant(p.productVariant);
+                    const variantCount = p.productVariant.length;
+                    const stock = totalStock(p.productVariant);
                     const price = v ? Number(v.price) : 0;
                     const compareAt = v ? Number(v.compare_at_price) : 0;
                     return (
@@ -216,7 +222,7 @@ export default function ProductsPage() {
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
                             <img
-                              src={p.images[0] ?? "/images/logo.png"}
+                              src={productImage(p.images)}
                               alt={p.name_en}
                               className="w-11 h-11 rounded-lg object-cover bg-cream shrink-0"
                             />
@@ -227,31 +233,41 @@ export default function ProductsPage() {
                         </td>
                         <td className="px-5 py-3.5 text-muted whitespace-nowrap">
                           {v?.sku ?? "—"}
+                          {variantCount > 1 && (
+                            <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-peach">
+                              +{variantCount - 1} more
+                            </span>
+                          )}
                         </td>
                         <td className="px-5 py-3.5 text-muted whitespace-nowrap">
                           {p.category.name_en}
                         </td>
                         <td className="px-5 py-3.5 whitespace-nowrap">
                           <span className="font-medium text-charcoal">
-                            {v ? formatINR(price) : "—"}
+                            {v ? money(price) : "—"}
                           </span>
                           {compareAt > price ? (
                             <span className="ml-1.5 text-[11px] text-muted line-through">
-                              {formatINR(compareAt)}
+                              {money(compareAt)}
                             </span>
                           ) : null}
                         </td>
                         <td className="px-5 py-3.5">
                           <span
                             className={`font-semibold ${
-                              !v || v.stock === 0
+                              stock === 0
                                 ? "text-rose-600"
-                                : v.stock < 50
+                                : stock < 50
                                   ? "text-amber-600"
                                   : "text-charcoal"
                             }`}
+                            title={
+                              variantCount > 1
+                                ? `Combined across ${variantCount} variants`
+                                : undefined
+                            }
                           >
-                            {v?.stock ?? 0}
+                            {stock}
                           </span>
                         </td>
                         <td className="px-5 py-3.5">
@@ -278,6 +294,14 @@ export default function ProductsPage() {
                                 aria-label={`Change status of ${p.name_en}`}
                               />
                             </div>
+                            <Link
+                              href={`/admin/products/${p.id}/edit`}
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-peach hover:bg-peach-soft transition"
+                              aria-label={`Edit ${p.name_en}`}
+                              title="Edit product"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Link>
                             <button
                               onClick={() => {
                                 if (confirm(`Delete product "${p.name_en}"?`)) {
@@ -288,6 +312,7 @@ export default function ProductsPage() {
                               disabled={deleteMutation.isPending}
                               className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
                               aria-label={`Delete ${p.name_en}`}
+                              title="Delete product"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>

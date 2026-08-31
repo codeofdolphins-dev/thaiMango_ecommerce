@@ -1,16 +1,38 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { loadStripe } from "@stripe/stripe-js";
+import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import {
   Elements,
   PaymentElement,
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
+import { useStore } from "@/components/public/store";
+import { CURRENCIES } from "@/lib/currency";
 
-const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
+/* A placeholder such as "pk_test_xxxxxxxxxxxx" is truthy, so Stripe.js accepts
+   it here and rejects asynchronously — leaving a blank card area with nothing
+   to explain it. Reject obviously-fake keys up front instead. */
+const isUsableKey = (key: string | undefined): key is string =>
+  !!key &&
+  /^pk_(test|live)_/.test(key) &&
+  !/^pk_(test|live)_x+$/i.test(key) &&
+  key.length >= 30;
+
+/* The publishable key now comes from admin Settings at runtime, so cache the
+   Stripe instance per key rather than creating one at module load.
+   Swallow a load failure (bad key, blocked network) so the form falls back to
+   the notice below rather than throwing. */
+const stripeCache = new Map<string, Promise<Stripe | null>>();
+
+function getStripe(key: string) {
+  const cached = stripeCache.get(key);
+  if (cached) return cached;
+  const promise = loadStripe(key).catch(() => null);
+  stripeCache.set(key, promise);
+  return promise;
+}
 
 export type CardPayResult = {
   ok: boolean;
@@ -91,11 +113,18 @@ export default function StripeCardForm({
   buildPayload,
   registerPay,
 }: StripeCardFormProps) {
+  /* Currency and the publishable key follow admin Settings — never hardcoded. */
+  const { currency, settings } = useStore();
+  const publishableKey = settings?.stripe_publishable_key;
+  const stripePromise = useMemo(
+    () => (isUsableKey(publishableKey) ? getStripe(publishableKey) : null),
+    [publishableKey]
+  );
   const options = useMemo(
     () => ({
       mode: "payment" as const,
-      amount: Math.max(50, amountPaise),
-      currency: "inr",
+      amount: Math.max(CURRENCIES[currency].minChargeMinor, amountPaise),
+      currency: currency.toLowerCase(),
       appearance: {
         variables: {
           colorPrimary: "#7A1233",
@@ -105,15 +134,24 @@ export default function StripeCardForm({
         },
       },
     }),
-    [amountPaise]
+    [amountPaise, currency]
   );
 
   if (!stripePromise) {
     return (
-      <p className="text-xs text-muted p-4 rounded-2xl bg-cream/40 border border-cream">
-        Card payments are unavailable — NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is
-        not configured.
-      </p>
+      <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200">
+        <p className="text-xs font-semibold text-amber-900 mb-1">
+          Stripe is not configured yet
+        </p>
+        <p className="text-[11px] text-amber-800 leading-relaxed">
+          {publishableKey
+            ? "The saved Stripe publishable key looks like a placeholder."
+            : "No Stripe publishable key has been saved."}{" "}
+          Add your real key from the Stripe dashboard (Developers → API keys) in
+          Admin → Settings → Payment Gateways. Meanwhile you can pay with
+          Razorpay or Cash on Delivery.
+        </p>
+      </div>
     );
   }
 

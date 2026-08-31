@@ -12,7 +12,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { formatINR } from "@/components/admin/data";
+import { useMoney } from "@/components/admin/useMoney";
 import {
   Card,
   PageHeader,
@@ -65,6 +65,7 @@ function Stars({ n }: { n: number }) {
 }
 
 export default function DashboardPage() {
+  const { format: money } = useMoney();
   const statsQuery = useQuery({
     queryKey: ["admin-stats"],
     queryFn: async (): Promise<Stats> => {
@@ -104,7 +105,7 @@ export default function DashboardPage() {
           Icon={TrendingUp}
           chip="Live"
           label="Total Revenue"
-          value={stats ? formatINR(stats.revenue) : "…"}
+          value={stats ? money(stats.revenue) : "…"}
         />
         <StatCard
           Icon={ShoppingBag}
@@ -183,7 +184,7 @@ export default function DashboardPage() {
                       Order #TM-{String(o.order_no).padStart(5, "0")}
                     </div>
                     <div className="text-xs text-slate-400 font-medium">
-                      {formatINR(Number(o.total))} · {o.user.name}
+                      {money(Number(o.total))} · {o.user.name}
                     </div>
                   </div>
                   <div className="text-right shrink-0">

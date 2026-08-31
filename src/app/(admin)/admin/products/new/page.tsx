@@ -1,20 +1,50 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ChevronLeft, Upload } from "lucide-react";
 import Select from "react-select";
 import { Card, PageHeader } from "@/components/admin/ui";
 import { adminSelectStyles, SelectOption } from "@/components/admin/selectStyles";
+import VariantsEditor, {
+  emptyVariant,
+  VariantFormRow,
+} from "@/components/admin/VariantsEditor";
 import { productSchema } from "@/schemas/product.schema";
 
 const inputCls =
   "w-full px-4 py-2.5 rounded-xl border border-stone-200/70 bg-white text-sm focus:outline-none focus:border-peach transition placeholder:text-muted/60";
 const labelCls =
   "block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1.5";
+
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+const SKU_SKIP_WORDS = new Set(["thai", "mango", "the", "a", "of", "and"]);
+
+function buildSku(nameEn: string, weightGrams: string) {
+  const words = nameEn
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((w) => !SKU_SKIP_WORDS.has(w.toLowerCase()));
+  const source = words.length > 0 ? words : nameEn.trim().split(/\s+/).filter(Boolean);
+  const code = source
+    .slice(0, 3)
+    .map((w) => w.replace(/[^a-zA-Z]/g, "").charAt(0).toUpperCase())
+    .join("");
+  if (!code) return "";
+  const weight = weightGrams.trim();
+  return weight ? `TM-${code}-${weight}` : `TM-${code}`;
+}
 
 interface AdminCategory {
   id: number;
@@ -33,12 +63,10 @@ interface FormValues {
   tags: string;
   highlights: string;
   images: string;
-  variant_label: string;
-  weight_grams: string;
-  sku: string;
-  price: string;
-  compare_at_price: string;
-  stock: string;
+  how_its_made: string;
+  storage_info: string;
+  ingredients: string;
+  variants: VariantFormRow[];
 }
 
 const splitList = (s: string) =>
@@ -65,11 +93,35 @@ export default function NewProductPage() {
     register,
     handleSubmit,
     setError,
+    setValue,
     control,
     formState: { errors },
   } = useForm<FormValues>({
-    defaultValues: { status: "DRAFT", category_id: "" },
+    defaultValues: {
+      status: "DRAFT",
+      category_id: "",
+      variants: [{ ...emptyVariant(), is_default: true }],
+    },
   });
+
+  const nameEn = useWatch({ control, name: "name_en" });
+  const variants = useWatch({ control, name: "variants" });
+
+  /* Slug is always derived from the English name — the field is read-only. */
+  useEffect(() => {
+    setValue("slug", slugify(nameEn ?? ""));
+  }, [nameEn, setValue]);
+
+  /* Suggest a SKU for any row that doesn't have one yet; never overwrite one
+     the admin has typed. */
+  useEffect(() => {
+    (variants ?? []).forEach((row, i) => {
+      if (!row.sku?.trim()) {
+        const suggested = buildSku(nameEn ?? "", row.weight_grams ?? "");
+        if (suggested) setValue(`variants.${i}.sku`, suggested);
+      }
+    });
+  }, [nameEn, variants, setValue]);
 
   const createMutation = useMutation({
     mutationFn: async (payload: unknown) => {
@@ -102,23 +154,37 @@ export default function NewProductPage() {
       images: splitList(values.images),
       tags: splitList(values.tags),
       highlights: splitList(values.highlights),
+      how_its_made: values.how_its_made || undefined,
+      storage_info: values.storage_info || undefined,
+      ingredients: values.ingredients || undefined,
       status,
-      variant: {
-        label: values.variant_label,
-        weight_grams: values.weight_grams,
-        sku: values.sku,
-        price: values.price,
-        compare_at_price: values.compare_at_price || "0",
-        stock: values.stock || "0",
-        is_default: true,
-      },
+      variants: (values.variants ?? []).map((v) => ({
+        label: v.label,
+        weight_grams: v.weight_grams,
+        sku: v.sku,
+        price: v.price,
+        compare_at_price: v.compare_at_price || "0",
+        stock: v.stock || "0",
+        is_default: Boolean(v.is_default),
+      })),
     };
 
     const parsed = productSchema.safeParse(payload);
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       const path = issue.path.join(".");
-      /* map schema paths back onto form fields where possible */
+      /* Variant issues carry a numeric index — map them onto the right row. */
+      if (issue.path[0] === "variants" && typeof issue.path[1] === "number") {
+        const key = issue.path[2] as keyof VariantFormRow | undefined;
+        if (key) {
+          setError(`variants.${issue.path[1]}.${key}` as never, {
+            message: issue.message,
+          });
+        } else {
+          setServerError(issue.message);
+        }
+        return;
+      }
       const fieldMap: Record<string, keyof FormValues> = {
         slug: "slug",
         category_id: "category_id",
@@ -126,16 +192,11 @@ export default function NewProductPage() {
         name_th: "name_th",
         description_en: "description_en",
         description_th: "description_th",
-        "variant.label": "variant_label",
-        "variant.weight_grams": "weight_grams",
-        "variant.sku": "sku",
-        "variant.price": "price",
-        "variant.compare_at_price": "compare_at_price",
-        "variant.stock": "stock",
+        variants: "variants",
       };
       const field = fieldMap[path];
       if (field) {
-        setError(field, { message: issue.message });
+        setError(field as never, { message: issue.message });
       } else {
         setServerError(`${path}: ${issue.message}`);
       }
@@ -147,7 +208,9 @@ export default function NewProductPage() {
 
   const fieldError = (name: keyof FormValues) =>
     errors[name] ? (
-      <p className="text-[11px] text-rose-600 mt-1">{errors[name]?.message}</p>
+      <p className="text-[11px] text-rose-600 mt-1">
+        {errors[name]?.message as string}
+      </p>
     ) : null;
 
   return (
@@ -222,10 +285,14 @@ export default function NewProductPage() {
               <div>
                 <label className={labelCls}>Slug</label>
                 <input
-                  className={inputCls}
+                  className={`${inputCls} bg-stone-50 text-muted cursor-not-allowed`}
                   placeholder="chili-lime-bites"
+                  readOnly
                   {...register("slug")}
                 />
+                <p className="text-[11px] text-muted mt-1">
+                  Auto-generated from the English name.
+                </p>
                 {fieldError("slug")}
               </div>
               <div>
@@ -248,61 +315,52 @@ export default function NewProductPage() {
                 />
                 {fieldError("description_th")}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className={labelCls}>SKU</label>
-                  <input className={inputCls} placeholder="TM-CHL-100" {...register("sku")} />
-                  {fieldError("sku")}
-                </div>
-                <div>
-                  <label className={labelCls}>Variant Label</label>
-                  <input
-                    className={inputCls}
-                    placeholder="Standard Pouch"
-                    {...register("variant_label")}
-                  />
-                  {fieldError("variant_label")}
-                </div>
-              </div>
             </div>
           </Card>
 
+          <VariantsEditor<FormValues>
+            control={control}
+            register={register}
+            errors={errors}
+            buildSku={(row) => buildSku(nameEn ?? "", row.weight_grams)}
+          />
+
           <Card className="p-6">
             <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-5">
-              Pricing &amp; Inventory
+              Product Details
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="space-y-5">
               <div>
-                <label className={labelCls}>Price (₹)</label>
-                <input type="number" className={inputCls} placeholder="430" {...register("price")} />
-                {fieldError("price")}
-              </div>
-              <div>
-                <label className={labelCls}>Compare-at (₹)</label>
-                <input
-                  type="number"
-                  className={inputCls}
-                  placeholder="480"
-                  {...register("compare_at_price")}
+                <label className={labelCls}>How It&apos;s Made</label>
+                <textarea
+                  rows={3}
+                  className={`${inputCls} resize-y`}
+                  placeholder="Hand-selected, sliced and slow sun-dried…"
+                  {...register("how_its_made")}
                 />
-                {fieldError("compare_at_price")}
               </div>
               <div>
-                <label className={labelCls}>Stock Quantity</label>
-                <input type="number" className={inputCls} placeholder="150" {...register("stock")} />
-                {fieldError("stock")}
-              </div>
-              <div>
-                <label className={labelCls}>Weight (grams)</label>
-                <input
-                  type="number"
-                  className={inputCls}
-                  placeholder="100"
-                  {...register("weight_grams")}
+                <label className={labelCls}>Storage &amp; Freshness</label>
+                <textarea
+                  rows={3}
+                  className={`${inputCls} resize-y`}
+                  placeholder="Keep in a cool, dry place away from direct sunlight…"
+                  {...register("storage_info")}
                 />
-                {fieldError("weight_grams")}
+              </div>
+              <div>
+                <label className={labelCls}>Full Ingredients</label>
+                <textarea
+                  rows={3}
+                  className={`${inputCls} resize-y`}
+                  placeholder="Mangifera Indica (Mango), no added sugar…"
+                  {...register("ingredients")}
+                />
               </div>
             </div>
+            <p className="text-[11px] text-muted mt-3">
+              Optional — shown in the accordion on the storefront product page.
+            </p>
           </Card>
 
           <Card className="p-6">

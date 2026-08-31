@@ -36,7 +36,7 @@ export async function GET(req: Request) {
                 orderBy: { created_at: "desc" },
                 include: {
                     category: { select: { slug: true, name_en: true, name_th: true } },
-                    productVariant: true,
+                    productVariant: { orderBy: { position: "asc" } },
                 },
             }),
             prisma.product.count({ where }),

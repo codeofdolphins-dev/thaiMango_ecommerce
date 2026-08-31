@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ApiResponse, ApiError } from "@/helper/apiResponse";
 import { requireAdmin } from "@/lib/adminAuth";
-import { productSchema } from "@/schemas/product.schema";
+import { productSchema, normalizeVariants } from "@/schemas/product.schema";
 
 export async function GET() {
     try {
@@ -17,7 +17,7 @@ export async function GET() {
             orderBy: { created_at: "desc" },
             include: {
                 category: { select: { id: true, slug: true, name_en: true } },
-                productVariant: true,
+                productVariant: { orderBy: { position: "asc" } },
             },
         });
 
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
             return NextResponse.json(apiError, { status: apiError.statusCode });
         }
 
-        const { variant, ...productData } = parsed.data;
+        const { variants, ...productData } = parsed.data;
 
         const slugTaken = await prisma.product.findUnique({ where: { slug: productData.slug } });
         if (slugTaken) {
@@ -57,20 +57,30 @@ export async function POST(req: Request) {
             return NextResponse.json(apiError, { status: apiError.statusCode });
         }
 
-        const skuTaken = await prisma.productVariant.findUnique({ where: { sku: variant.sku } });
+        const skuTaken = await prisma.productVariant.findFirst({
+            where: { sku: { in: variants.map((v) => v.sku) } },
+        });
         if (skuTaken) {
-            const apiError = new ApiError(409, "A variant with this SKU already exists");
+            const apiError = new ApiError(
+                409,
+                `SKU "${skuTaken.sku}" is already used by another product`
+            );
             return NextResponse.json(apiError, { status: apiError.statusCode });
         }
 
         const product = await prisma.product.create({
             data: {
                 ...productData,
-                productVariant: { create: variant },
+                productVariant: {
+                    create: normalizeVariants(variants).map(({ id: _id, ...v }, i) => ({
+                        ...v,
+                        position: i,
+                    })),
+                },
             },
             include: {
                 category: { select: { id: true, slug: true, name_en: true } },
-                productVariant: true,
+                productVariant: { orderBy: { position: "asc" } },
             },
         });
 

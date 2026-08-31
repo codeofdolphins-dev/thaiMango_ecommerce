@@ -1,3 +1,5 @@
+import { formatMoney } from "@/lib/currency";
+
 // Shared site data ported from resources/js/app.js
 
 export type Lang = "en" | "th";
@@ -113,8 +115,9 @@ export const menuPromoData = {
 
 export type MenuTab = keyof typeof menuPromoData;
 
-export const formatPrice = (price: number) =>
-  `₹${Number(price).toLocaleString("en-IN")}`;
+/** @deprecated static fallback — client components should take formatPrice
+ *  from useStore() so it follows the store currency setting. */
+export const formatPrice = (price: number) => formatMoney(Number(price));
 
 export const FREE_SHIPPING_THRESHOLD = 1500;
 export const STANDARD_SHIPPING = 99;

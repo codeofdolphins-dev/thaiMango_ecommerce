@@ -10,7 +10,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
             where: { slug, status: "ACTIVE" },
             include: {
                 category: { select: { slug: true, name_en: true, name_th: true } },
-                productVariant: true,
+                productVariant: { orderBy: { position: "asc" } },
+                reviews: {
+                    where: { status: "PUBLISHED" },
+                    orderBy: { created_at: "desc" },
+                    select: {
+                        id: true,
+                        rating: true,
+                        text: true,
+                        created_at: true,
+                        user: { select: { name: true } },
+                    },
+                },
             },
         });
 
@@ -19,7 +30,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
             return NextResponse.json(apiError, { status: apiError.statusCode });
         }
 
-        const apiResponse = new ApiResponse(200, product, "Product fetched successfully");
+        const ratingCount = product.reviews.length;
+        const ratingAverage =
+            ratingCount === 0
+                ? null
+                : product.reviews.reduce((sum, r) => sum + r.rating, 0) / ratingCount;
+
+        const apiResponse = new ApiResponse(
+            200,
+            { ...product, ratingAverage, ratingCount },
+            "Product fetched successfully"
+        );
         return NextResponse.json(apiResponse, { status: apiResponse.statusCode });
     } catch (error) {
         console.error("Fetching product failed:", error);

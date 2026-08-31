@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
-import { formatPrice, FREE_SHIPPING_THRESHOLD } from "@/lib/site-data";
 import { useStore } from "./store";
 
 export default function CartDrawer() {
@@ -16,13 +15,15 @@ export default function CartDrawer() {
     removeFromCart,
     updateQty,
     showToast,
+    formatPrice,
+    freeShippingThreshold,
   } = useStore();
   const router = useRouter();
 
-  const remainingForFree = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
+  const remainingForFree = Math.max(0, freeShippingThreshold - subtotal);
   const progressPercent = Math.min(
     100,
-    (subtotal / FREE_SHIPPING_THRESHOLD) * 100
+    (subtotal / freeShippingThreshold) * 100
   );
 
   const handleCheckout = () => {
