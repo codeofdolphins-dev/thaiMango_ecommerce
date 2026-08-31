@@ -20,6 +20,8 @@ export async function GET(req: Request) {
     const displayCurrency = resolveDisplayCurrency(settings, country);
     const displayRate = await getExchangeRate(baseCurrency, displayCurrency);
 
+    // console.log("settings", settings)
+
     const apiResponse = new ApiResponse(
         200,
         {

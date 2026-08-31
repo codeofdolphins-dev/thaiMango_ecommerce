@@ -11,6 +11,7 @@ import ScrollEffects from "./ScrollEffects";
 import SearchOverlay from "./SearchOverlay";
 import SiteFooter from "./SiteFooter";
 import SiteHeader from "./SiteHeader";
+import { useStore } from "./store";
 
 /* Per-page body classes + color palette ported from the static pages
    (each HTML page shipped its own tailwind.config palette) */
@@ -37,9 +38,11 @@ export default function PublicShell({
   const pathname = usePathname();
   const variant = pathname === "/" ? "hero" : "solid";
 
+  const { settings } = useStore();
+
   return (
     <div className={wrapperClass(pathname)}>
-      <AnnouncementBar />
+      {settings?.show_announcement && <AnnouncementBar />}
       <SiteHeader variant={variant} />
       {children}
       <SiteFooter />

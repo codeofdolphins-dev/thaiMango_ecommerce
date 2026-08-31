@@ -59,6 +59,7 @@ export function toPublicSettings(settings: SettingsValues) {
         support_email: settings.support_email,
         support_phone: settings.support_phone,
         store_address: settings.store_address,
+        show_announcement: settings.show_announcement,
         /* Base (entry) currency — admin money formatting uses it. */
         base_currency: baseCurrencyOf(settings),
         free_shipping_above: settings.free_shipping_above,
