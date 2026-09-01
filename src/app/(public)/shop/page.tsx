@@ -25,6 +25,7 @@ interface ApiProduct {
   description_en: string;
   images: string[];
   highlights: string[];
+  tags: string[];
   category: { slug: string; name_en: string };
   productVariant: ApiVariant[];
 }
@@ -34,8 +35,9 @@ interface ApiCategory {
   name_en: string;
 }
 
-const BADGE_CLASS =
-  "bg-charcoal text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm";
+const BADGE_CLASS = "w-fit bg-charcoal text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm";
+const TAGS_CLASS = "w-fit bg-gold text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm";
+
 type PriceFormatter = (value: number) => string;
 
 
@@ -63,7 +65,8 @@ interface ViewProduct {
   categoryName: string;
   image: string;
   alt: string;
-  badges: string[];
+  badges: string;
+  tags: string;
   weight: string;
   name: string;
   desc: string;
@@ -87,8 +90,9 @@ function mapProduct(p: ApiProduct, formatPrice: PriceFormatter): ViewProduct {
     categoryName: p.category.name_en,
     image: productImage(p.images),
     alt: p.name_en,
-    badges: p.highlights.slice(0, 2),
-    weight: variant ? `${variant.weight_grams}G ${variant.label}` : "",
+    badges: p.highlights.slice(0, 2).join(", "),
+    tags: p.tags.slice(0, 2).join(", "),
+    weight: variant ? `${variant.label}` : "",
     name: p.name_en,
     desc: p.description_en,
     price: hasCheaper ? lowest : price,
@@ -223,87 +227,87 @@ function ShopPageContent() {
               </span>
             </div>
           ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {visibleProducts.map((product) => (
-              <div
-                key={product.id}
-                className="product-card bg-white rounded-[28px] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 group flex flex-col"
-                data-product-id={product.id}
-                data-category={product.categorySlug}
-              >
-                <div className="relative aspect-[4/3.8] overflow-hidden bg-[#FAF8F5]">
-                  <img
-                    src={product.image}
-                    alt={product.alt}
-                    className="product-image w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                  />
-                  <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-                    {product.badges.map((badge) => (
-                      <span key={badge} className={BADGE_CLASS}>
-                        {badge}
-                      </span>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openQuickView({
-                        name: product.name,
-                        price: product.priceDisplay,
-                        image: product.image,
-                        desc: product.desc,
-                        slug: product.slug,
-                      })
-                    }
-                    className="quick-view-btn absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-charcoal shadow hover:bg-accent hover:text-white transition"
-                    aria-label="Quick View"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="p-6 md:p-8 flex-1 flex flex-col justify-between">
-                  <div>
-                    <span className="text-[10px] tracking-widest uppercase font-bold text-accent mb-1.5 block">
-                      {product.weight}
-                    </span>
-                    <h3 className="product-name font-serif text-2xl text-charcoal mb-2 hover:text-accent transition">
-                      <Link href={`/product-detail/${product.slug}`}>
-                        {product.name}
-                      </Link>
-                    </h3>
-                    <p className="product-desc text-xs text-muted line-clamp-2 leading-relaxed mb-6">
-                      {product.desc}
-                    </p>
-                  </div>
-                  <div className="pt-4 border-t border-cream flex items-center justify-between">
-                    <div>
-                      <span className="product-price font-serif text-xl font-semibold text-charcoal">
-                        {product.priceDisplay}
-                      </span>
-                      {product.comparePrice && (
-                        <span className="text-xs text-muted line-through ml-1.5">
-                          {product.comparePrice}
-                        </span>
-                      )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {visibleProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="product-card bg-white rounded-[28px] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 group flex flex-col"
+                  data-product-id={product.id}
+                  data-category={product.categorySlug}
+                >
+                  <div className="relative aspect-[4/3.8] overflow-hidden bg-[#FAF8F5]">
+                    <img
+                      src={product.image}
+                      alt={product.alt}
+                      className="product-image w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                    />
+                    <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
+                      {/* {product.badges.map((badge) => (
+                  ))} */}
+                      <span className={BADGE_CLASS}>{product.badges}</span>
+                      <span className={TAGS_CLASS}>{product.tags}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() =>
-                        addToCart({
+                        openQuickView({
                           name: product.name,
-                          price: product.price,
+                          price: product.priceDisplay,
                           image: product.image,
+                          desc: product.desc,
+                          slug: product.slug,
                         })
                       }
-                      className="add-to-cart px-5 py-2.5 bg-charcoal text-white rounded-full text-xs font-bold uppercase tracking-wider hover:bg-accent transition duration-300"
+                      className="quick-view-btn absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-charcoal shadow hover:bg-accent hover:text-white transition"
+                      aria-label="Quick View"
                     >
-                      Add to Bag
+                      <Eye className="w-4 h-4" />
                     </button>
                   </div>
+                  <div className="p-6 md:p-8 flex-1 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] tracking-widest uppercase font-bold text-accent mb-1.5 block">
+                        {product.weight}
+                      </span>
+                      <h3 className="product-name font-serif text-2xl text-charcoal mb-2 hover:text-accent transition">
+                        <Link href={`/product-detail/${product.slug}`}>
+                          {product.name}
+                        </Link>
+                      </h3>
+                      <p className="product-desc text-xs text-muted line-clamp-2 leading-relaxed mb-6">
+                        {product.desc}
+                      </p>
+                    </div>
+                    <div className="pt-4 border-t border-cream flex items-center justify-between">
+                      <div>
+                        <span className="product-price font-serif text-xl font-semibold text-charcoal">
+                          {product.priceDisplay}
+                        </span>
+                        {product.comparePrice && (
+                          <span className="text-xs text-muted line-through ml-1.5">
+                            {product.comparePrice}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          addToCart({
+                            slug: product.slug,
+                            name: product.name,
+                            price: product.price,
+                            image: product.image,
+                          })
+                        }
+                        className="add-to-cart px-5 py-2.5 bg-charcoal text-white rounded-full text-xs font-bold uppercase tracking-wider hover:bg-accent transition duration-300"
+                      >
+                        Add to Bag
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
           )}
         </div>
       </section>

@@ -113,7 +113,7 @@ export default function OrdersPage() {
 
       <Card className="overflow-hidden">
         {/* Toolbar */}
-        <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 border-b border-stone-200/70">
+        <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 border-b border-cream">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             {TABS.map((t) => (
               <button
@@ -121,8 +121,8 @@ export default function OrdersPage() {
                 onClick={() => setTab(t)}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
                   tab === t
-                    ? "bg-gradient-to-r from-peach to-peach-deep text-white shadow-sm shadow-peach/30"
-                    : "text-muted hover:bg-peach-soft"
+                    ? "bg-accent text-white shadow-sm shadow-accent/25"
+                    : "text-muted hover:bg-cream"
                 }`}
               >
                 {t === "ALL" ? "All" : STATUS_LABEL[t]}
@@ -135,7 +135,7 @@ export default function OrdersPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search orders…"
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-[#F5F4F1] border border-stone-200/70 text-sm focus:outline-none focus:border-peach transition"
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-ivory border border-cream text-sm focus:outline-none focus:border-accent transition"
             />
           </div>
         </div>
@@ -143,7 +143,7 @@ export default function OrdersPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[760px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-muted border-b border-stone-200/70 bg-[#F5F4F1]">
+              <tr className="text-left text-[11px] uppercase tracking-wider text-muted border-b border-cream bg-ivory">
                 <th className="font-semibold px-5 py-3">Order</th>
                 <th className="font-semibold px-5 py-3">Customer</th>
                 <th className="font-semibold px-5 py-3">Date</th>
@@ -166,7 +166,7 @@ export default function OrdersPage() {
                   {rows.map((o) => (
                     <tr
                       key={o.id}
-                      className="border-b border-stone-100 last:border-0 hover:bg-peach-soft/30 transition"
+                      className="border-b border-cream/60 last:border-0 hover:bg-cream/30 transition"
                     >
                       <td className="px-5 py-3.5 font-semibold text-charcoal whitespace-nowrap">
                         TM-{String(o.order_no).padStart(5, "0")}

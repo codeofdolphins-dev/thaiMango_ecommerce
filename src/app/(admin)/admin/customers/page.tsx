@@ -58,7 +58,7 @@ export default function CustomersPage() {
           <span className="text-xs font-semibold uppercase tracking-wider text-muted">
             Total Customers
           </span>
-          <div className="text-3xl font-bold text-ink mt-2">
+          <div className="text-3xl font-bold text-charcoal mt-2">
             {customersQuery.isPending ? "…" : customers.length}
           </div>
         </Card>
@@ -66,7 +66,7 @@ export default function CustomersPage() {
           <span className="text-xs font-semibold uppercase tracking-wider text-muted">
             Newest Signup
           </span>
-          <div className="text-xl font-bold text-ink mt-2 truncate">
+          <div className="text-xl font-bold text-charcoal mt-2 truncate">
             {customersQuery.isPending
               ? "…"
               : newestSignup
@@ -82,15 +82,15 @@ export default function CustomersPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="flex items-center gap-4 p-4 border-b border-stone-200/70">
-          <h2 className="text-base font-bold uppercase tracking-wide text-ink">All Customers</h2>
+        <div className="flex items-center gap-4 p-4 border-b border-cream">
+          <h2 className="text-base font-bold uppercase tracking-wide text-charcoal">All Customers</h2>
           <div className="relative ml-auto w-full max-w-xs">
             <Search className="w-4 h-4 text-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search customers…"
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-[#F5F4F1] border border-stone-200/70 text-sm focus:outline-none focus:border-peach transition"
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-ivory border border-cream text-sm focus:outline-none focus:border-accent transition"
             />
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function CustomersPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[640px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-muted border-b border-stone-200/70 bg-[#F5F4F1]">
+              <tr className="text-left text-[11px] uppercase tracking-wider text-muted border-b border-cream bg-ivory">
                 <th className="font-semibold px-5 py-3">Customer</th>
                 <th className="font-semibold px-5 py-3">Phone</th>
                 <th className="font-semibold px-5 py-3">Flavor Preference</th>
@@ -117,11 +117,11 @@ export default function CustomersPage() {
                   {rows.map((c) => (
                     <tr
                       key={c.id}
-                      className="border-b border-stone-100 last:border-0 hover:bg-peach-soft/30 transition"
+                      className="border-b border-cream/60 last:border-0 hover:bg-cream/30 transition"
                     >
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-peach/15 text-peach flex items-center justify-center font-bold text-sm shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-accent/15 text-accent flex items-center justify-center font-bold text-sm shrink-0">
                             {c.name[0]?.toUpperCase() ?? "?"}
                           </div>
                           <div className="min-w-0">

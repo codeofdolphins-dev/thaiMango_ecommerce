@@ -12,7 +12,7 @@ import { Card } from "@/components/admin/ui";
 import { useMoney } from "@/components/admin/useMoney";
 
 const inputCls =
-  "w-full px-3 py-2 rounded-lg border border-stone-200/70 bg-white text-sm focus:outline-none focus:border-peach transition placeholder:text-muted/60";
+  "w-full px-3 py-2 rounded-lg border border-cream bg-white text-sm focus:outline-none focus:border-accent transition placeholder:text-muted/60";
 const labelCls =
   "block text-[10px] uppercase tracking-wider font-semibold text-muted mb-1";
 
@@ -76,7 +76,7 @@ export default function VariantsEditor<T extends VariantsFormShape>({
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-base font-bold uppercase tracking-wide text-ink">
+        <h2 className="text-base font-bold uppercase tracking-wide text-charcoal">
           Variants &amp; Pricing
         </h2>
         <button
@@ -89,7 +89,7 @@ export default function VariantsEditor<T extends VariantsFormShape>({
               is_default: rows.length === 0,
             } as any);
           }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200/70 text-xs font-semibold text-slate-600 hover:border-peach hover:text-peach transition"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cream text-xs font-semibold text-charcoal/80 hover:border-accent hover:text-accent transition"
         >
           <Plus className="w-3.5 h-3.5" />
           Add Variant
@@ -109,7 +109,7 @@ export default function VariantsEditor<T extends VariantsFormShape>({
 
       <div className="space-y-4">
         {rows.length === 0 ? (
-          <p className="text-sm text-muted py-6 text-center border border-dashed border-stone-300 rounded-xl">
+          <p className="text-sm text-muted py-6 text-center border border-dashed border-cream rounded-xl">
             No variants yet — add at least one.
           </p>
         ) : (
@@ -120,15 +120,15 @@ export default function VariantsEditor<T extends VariantsFormShape>({
                 key={field.id}
                 className={`rounded-xl border p-4 transition ${
                   row.is_default
-                    ? "border-peach/60 bg-peach-soft/30"
-                    : "border-stone-200/70 bg-white"
+                    ? "border-accent/60 bg-cream/30"
+                    : "border-cream bg-white"
                 }`}
               >
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
                     Variant {index + 1}
                     {row.is_default && (
-                      <span className="ml-2 text-peach">• Default</span>
+                      <span className="ml-2 text-accent">• Default</span>
                     )}
                   </span>
                   <div className="flex items-center gap-1">
@@ -140,12 +140,12 @@ export default function VariantsEditor<T extends VariantsFormShape>({
                       aria-label={`Make variant ${index + 1} the default`}
                       className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
                         row.is_default
-                          ? "text-peach"
-                          : "text-slate-400 hover:text-peach hover:bg-peach-soft"
+                          ? "text-accent"
+                          : "text-muted/70 hover:text-accent hover:bg-cream"
                       }`}
                     >
                       <Star
-                        className={`w-4 h-4 ${row.is_default ? "fill-peach" : ""}`}
+                        className={`w-4 h-4 ${row.is_default ? "fill-accent" : ""}`}
                       />
                     </button>
                     <button
@@ -167,7 +167,7 @@ export default function VariantsEditor<T extends VariantsFormShape>({
                           : "Remove variant"
                       }
                       aria-label={`Remove variant ${index + 1}`}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-muted/70 hover:text-rose-600 hover:bg-rose-50 transition disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted/70"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

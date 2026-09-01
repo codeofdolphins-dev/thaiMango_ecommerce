@@ -8,22 +8,23 @@ export function StatusBadge({ status }: { status: string }) {
     Cancelled: "bg-rose-50 text-rose-700 border-rose-200",
     Active: "bg-emerald-50 text-emerald-700 border-emerald-200",
     "In Stock": "bg-emerald-50 text-emerald-700 border-emerald-200",
-    Draft: "bg-stone-100 text-stone-600 border-stone-200",
+    Draft: "bg-cream text-muted border-cream",
     "Low Stock": "bg-amber-50 text-amber-700 border-amber-200",
     "Out of Stock": "bg-rose-50 text-rose-700 border-rose-200",
     New: "bg-sky-50 text-sky-700 border-sky-200",
-    Silver: "bg-stone-100 text-stone-600 border-stone-200",
+    Silver: "bg-cream text-muted border-cream",
     Gold: "bg-amber-50 text-amber-700 border-amber-200",
     Published: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    Resolved: "bg-emerald-50 text-emerald-700 border-emerald-200",
     Requested: "bg-amber-50 text-amber-700 border-amber-200",
     Confirmed: "bg-blue-50 text-blue-700 border-blue-200",
     Completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    Expired: "bg-stone-100 text-stone-500 border-stone-200",
+    Expired: "bg-cream text-muted border-cream",
   };
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
-        map[status] ?? "bg-stone-100 text-stone-600 border-stone-200"
+        map[status] ?? "bg-cream text-muted border-cream"
       }`}
     >
       <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
@@ -32,10 +33,11 @@ export function StatusBadge({ status }: { status: string }) {
   );
 }
 
-/* Mint status chip used on stat cards (Live / Total / Active / Growth) */
+/* Gold status chip used on stat cards (Live / Total / Active / Growth) —
+   mirrors the membership badge on the storefront dashboard. */
 export function MintChip({ label }: { label: string }) {
   return (
-    <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+    <span className="text-[10px] font-bold uppercase tracking-widest text-charcoal bg-gold/20 border border-gold/40 px-2.5 py-0.5 rounded-full">
       {label}
     </span>
   );
@@ -95,15 +97,17 @@ export function StatCard({
   return (
     <Card className="p-6">
       <div className="flex items-start justify-between mb-6">
-        <span className="w-11 h-11 rounded-xl bg-peach-soft flex items-center justify-center">
-          <Icon className="w-5 h-5 text-peach" />
+        <span className="w-11 h-11 rounded-2xl bg-cream flex items-center justify-center">
+          <Icon className="w-5 h-5 text-accent" />
         </span>
         <MintChip label={chip} />
       </div>
-      <span className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400 mb-1.5">
+      <span className="block text-[11px] font-bold uppercase tracking-widest text-accent mb-1.5">
         {label}
       </span>
-      <span className="block text-3xl font-bold text-ink">{value}</span>
+      <span className="block font-serif text-3xl font-bold text-charcoal">
+        {value}
+      </span>
     </Card>
   );
 }
@@ -126,16 +130,16 @@ export function BarChart({
         >
           <div className="relative w-full flex items-end justify-center h-full">
             <div
-              className="w-full max-w-[26px] rounded-t-md bg-peach/30 group-hover:bg-peach transition-all duration-300 relative"
+              className="w-full max-w-[26px] rounded-t-md bg-accent/30 group-hover:bg-burgundy transition-all duration-300 relative"
               style={{ height: `${(d.value / max) * 100}%` }}
             >
-              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-ink opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-charcoal opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
                 {unit}
                 {d.value}L
               </span>
             </div>
           </div>
-          <span className="text-[10px] text-slate-400 font-medium">
+          <span className="text-[10px] text-muted/70 font-medium">
             {d.month}
           </span>
         </div>
@@ -144,7 +148,7 @@ export function BarChart({
   );
 }
 
-/* Page header — uppercase sans title with peach eyebrow subtitle */
+/* Page header — accent eyebrow above a serif title, as on the storefront */
 export function PageHeader({
   title,
   subtitle,
@@ -157,14 +161,14 @@ export function PageHeader({
   return (
     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold uppercase tracking-wide text-ink">
+        {subtitle ? (
+          <span className="block text-xs font-bold uppercase tracking-widest text-accent mb-1">
+            {subtitle}
+          </span>
+        ) : null}
+        <h1 className="font-serif text-3xl md:text-4xl text-charcoal">
           {title}
         </h1>
-        {subtitle ? (
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-peach mt-1.5">
-            {subtitle}
-          </p>
-        ) : null}
       </div>
       {children ? (
         <div className="flex items-center gap-3 shrink-0">{children}</div>
@@ -182,7 +186,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`bg-white rounded-2xl border border-stone-200/70 shadow-sm ${className}`}
+      className={`bg-white rounded-2xl border border-cream shadow-sm ${className}`}
     >
       {children}
     </div>
@@ -204,17 +208,15 @@ export function SectionTitle({
   return (
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-2.5">
-        <span className="w-8 h-8 rounded-lg bg-peach-soft flex items-center justify-center">
-          <Icon className="w-4 h-4 text-peach" />
+        <span className="w-8 h-8 rounded-xl bg-cream flex items-center justify-center">
+          <Icon className="w-4 h-4 text-accent" />
         </span>
-        <h2 className="text-sm font-bold uppercase tracking-wide text-ink">
-          {title}
-        </h2>
+        <h2 className="font-serif text-lg text-charcoal">{title}</h2>
       </div>
       {actionHref ? (
         <a
           href={actionHref}
-          className="text-[11px] font-semibold uppercase tracking-wide text-peach hover:underline"
+          className="px-4 py-2 rounded-full bg-accent text-white text-[10px] font-bold uppercase tracking-widest hover:bg-burgundy transition"
         >
           {actionLabel}
         </a>

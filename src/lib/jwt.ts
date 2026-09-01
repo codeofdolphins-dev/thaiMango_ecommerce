@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { Role } from "@/generated/prisma/client";
+import type { Role } from "@/generated/prisma/client";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 const SESSION_COOKIE_NAME = "session_token";

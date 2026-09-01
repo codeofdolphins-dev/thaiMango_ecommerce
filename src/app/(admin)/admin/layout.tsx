@@ -14,10 +14,14 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Providers>
-      <AdminGuard>
-        <AdminShell>{children}</AdminShell>
-      </AdminGuard>
-    </Providers>
+    // palette-account rebinds --color-accent/charcoal/ivory/cream/muted to the
+    // storefront account palette, the same scope /login and /dashboard use.
+    <div className="palette-account">
+      <Providers>
+        <AdminGuard>
+          <AdminShell>{children}</AdminShell>
+        </AdminGuard>
+      </Providers>
+    </div>
   );
 }

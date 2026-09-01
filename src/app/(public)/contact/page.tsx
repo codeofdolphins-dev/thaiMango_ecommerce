@@ -5,10 +5,55 @@ import { useState } from "react";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { useStore } from "@/components/public/store";
 import PhoneField from "@/components/common/PhoneField";
+import { DEFAULT_SETTINGS } from "@/schemas/settings.schema";
+import { INQUIRY_TOPICS } from "@/schemas/contact.schema";
 
 export default function ContactPage() {
-  const { showToast } = useStore();
+  const { showToast, settings } = useStore();
   const [contactPhone, setContactPhone] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const submitInquiry = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const fields = new FormData(form);
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          first_name: fields.get("first_name"),
+          last_name: fields.get("last_name"),
+          email: fields.get("email"),
+          phone: contactPhone,
+          topic: fields.get("topic"),
+          message: fields.get("message"),
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(body.errors?.[0] || body.message || "Something went wrong");
+      }
+      showToast("Thank you! Your request has been received.");
+      form.reset();
+      setContactPhone("");
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? error.message
+          : "Could not send your message. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /* Support details come from admin Settings; defaults are only the
+     pre-fetch fallback. */
+  const supportEmail = settings?.support_email || DEFAULT_SETTINGS.support_email;
+  const supportPhone = settings?.support_phone || DEFAULT_SETTINGS.support_phone;
+  const storeAddress = settings?.store_address || DEFAULT_SETTINGS.store_address;
 
   return (
     <main>
@@ -44,8 +89,11 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-charcoal mb-1">Email Inquiries</h4>
-                      <p className="text-sm text-muted">care@thaimango.com</p>
-                      <p className="text-xs text-muted">orders@thaimango.com</p>
+                      <p className="text-sm text-muted">
+                        <a href={`mailto:${supportEmail}`} className="hover:text-accent transition">
+                          {supportEmail}
+                        </a>
+                      </p>
                     </div>
                   </div>
 
@@ -55,7 +103,15 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-charcoal mb-1">Direct Support</h4>
-                      <p className="text-sm text-muted">+91 (0) 800-MANGO1 (Mon–Sat, 9AM–7PM)</p>
+                      <p className="text-sm text-muted">
+                        <a
+                          href={`tel:${supportPhone.replace(/[^+\d]/g, "")}`}
+                          className="hover:text-accent transition"
+                        >
+                          {supportPhone}
+                        </a>{" "}
+                        (Mon–Sat, 9AM–7PM)
+                      </p>
                     </div>
                   </div>
 
@@ -65,7 +121,7 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-charcoal mb-1">Flagship &amp; Packing House</h4>
-                      <p className="text-sm text-muted">Thai Mango House, Sukhumvit Rd, Bangkok 10110, Thailand</p>
+                      <p className="text-sm text-muted">{storeAddress}</p>
                     </div>
                   </div>
                 </div>
@@ -83,29 +139,22 @@ export default function ContactPage() {
               <h3 className="font-serif text-2xl md:text-3xl text-charcoal mb-2">Send Us a Message</h3>
               <p className="text-xs md:text-sm text-muted mb-8">Fill in your details below and we will get back to you promptly.</p>
 
-              <form
-                className="space-y-6"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  showToast("Thank you! Your request has been received.");
-                  e.currentTarget.reset();
-                }}
-              >
+              <form className="space-y-6" onSubmit={submitInquiry}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-charcoal mb-2">First Name *</label>
-                    <input type="text" required placeholder="Nalinee" className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory text-sm focus:outline-none focus:border-accent" />
+                    <input type="text" name="first_name" required placeholder="Nalinee" className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory text-sm focus:outline-none focus:border-accent" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-charcoal mb-2">Last Name *</label>
-                    <input type="text" required placeholder="Sombat" className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory text-sm focus:outline-none focus:border-accent" />
+                    <input type="text" name="last_name" required placeholder="Sombat" className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory text-sm focus:outline-none focus:border-accent" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-charcoal mb-2">Email Address *</label>
-                    <input type="email" required placeholder="name@domain.com" className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory text-sm focus:outline-none focus:border-accent" />
+                    <input type="email" name="email" required placeholder="name@domain.com" className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory text-sm focus:outline-none focus:border-accent" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-charcoal mb-2">Phone Number</label>
@@ -120,23 +169,26 @@ export default function ContactPage() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-charcoal mb-2">Inquiry Topic</label>
-                  <select className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory text-sm focus:outline-none focus:border-accent">
-                    <option>Product Recommendation / Flavor Help</option>
-                    <option>Order Status / Shipping Inquiries</option>
-                    <option>Bulk &amp; Wholesale Orders</option>
-                    <option>Corporate Gifting</option>
-                    <option>Press &amp; Collaborations</option>
-                    <option>Other Questions</option>
+                  <select name="topic" className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory text-sm focus:outline-none focus:border-accent">
+                    {INQUIRY_TOPICS.map((topic) => (
+                      <option key={topic} value={topic}>
+                        {topic}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-charcoal mb-2">Your Message *</label>
-                  <textarea rows={5} required placeholder="Tell us how we can assist you..." className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory text-sm focus:outline-none focus:border-accent"></textarea>
+                  <textarea rows={5} name="message" required placeholder="Tell us how we can assist you..." className="w-full px-4 py-3.5 rounded-2xl border border-cream bg-ivory text-sm focus:outline-none focus:border-accent"></textarea>
                 </div>
 
-                <button type="submit" className="w-full py-4 bg-charcoal text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-accent transition duration-300 shadow-md">
-                  Submit Inquiry
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-4 bg-charcoal text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-accent transition duration-300 shadow-md disabled:opacity-60"
+                >
+                  {submitting ? "Sending…" : "Submit Inquiry"}
                 </button>
               </form>
             </div>

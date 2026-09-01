@@ -24,7 +24,7 @@ import {
   currencySymbol,
   formatMoney,
 } from "@/lib/currency";
-import type { PublicSettings } from "@/lib/storeSettings";
+import type { SettingsResponse } from "@/lib/storeSettings";
 import { normalizeImagePath } from "@/lib/images";
 
 /* ------------------------------------------------------------------ */
@@ -32,6 +32,8 @@ import { normalizeImagePath } from "@/lib/images";
 /* ------------------------------------------------------------------ */
 
 export interface CartItem {
+  /** Product slug — lets the order API link the line to a real product. */
+  slug?: string;
   name: string;
   price: number;
   image: string;
@@ -64,6 +66,7 @@ interface StoreValue {
   /* cart */
   cart: CartItem[];
   addToCart: (item: {
+    slug?: string;
     name: string;
     price: number;
     image: string;
@@ -75,17 +78,17 @@ interface StoreValue {
   clearCart: () => void;
   subtotal: number;
   totalItems: number;
-  /* wishlist */
+  /* wishlist — product slugs, not names */
   wishlist: string[];
-  toggleWishlist: (name: string) => void;
-  isWishlisted: (name: string) => boolean;
+  toggleWishlist: (slug: string, label?: string) => void;
+  isWishlisted: (slug: string) => boolean;
   /* auth */
   user: AuthUser | null;
   setUser: (u: AuthUser | null) => void;
   logout: () => void;
   authLoading: boolean;
   /* store settings / currency */
-  settings: PublicSettings | null;
+  settings: SettingsResponse | null;
   /** Visitor's display currency. */
   currency: CurrencyCode;
   /** Currency product amounts are stored in. */
@@ -148,7 +151,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch {}
     try {
       const savedWish = localStorage.getItem("bm_wishlist");
-      if (savedWish) setWishlist(JSON.parse(savedWish));
+      if (savedWish) {
+        const saved = JSON.parse(savedWish);
+        if (Array.isArray(saved)) {
+          setWishlist(saved.filter((s): s is string => typeof s === "string"));
+        }
+      }
     } catch {}
     const savedLang = localStorage.getItem("preferred_language");
     if (savedLang === "th" || savedLang === "en") setLangState(savedLang);
@@ -162,7 +170,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch("/api/settings");
       if (!res.ok) return null;
       const body = await res.json();
-      return body.data as PublicSettings;
+      return body.data as SettingsResponse;
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -171,7 +179,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   /* Visitor-resolved display currency (IN → ₹, TH → ฿, else the admin's
      display currency or $) and the base → display FX rate that price values —
      stored in the base currency — are multiplied by before formatting. */
-  const currency: CurrencyCode = settings?.display_currency ?? DEFAULT_CURRENCY;
+  const currency: CurrencyCode = settings?.visitor_currency ?? DEFAULT_CURRENCY;
   const displayRate = settings?.display_rate ?? 1;
   const baseCurrency: CurrencyCode = settings?.base_currency ?? DEFAULT_CURRENCY;
   const formatPrice = useCallback(
@@ -226,6 +234,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setAuthLoading(false);
   }, [meQuery.isPending, meQuery.data]);
 
+  /* The wishlist used to hold product names; it now holds slugs. Convert any
+     legacy entry once, on the first mount that sees one, and drop names that
+     no longer match a product. */
+  useEffect(() => {
+    if (!mounted) return;
+    const legacy = wishlist.filter((entry) => !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(entry));
+    if (legacy.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/products?limit=100");
+        if (!res.ok) return;
+        const body = await res.json();
+        const bySlug = new Map<string, string>(
+          (body.data?.products ?? []).map(
+            (p: { slug: string; name_en: string }) => [p.name_en, p.slug]
+          )
+        );
+        if (cancelled) return;
+        setWishlist((prev) =>
+          Array.from(
+            new Set(
+              prev
+                .map((entry) =>
+                  /^[a-z0-9]+(-[a-z0-9]+)*$/.test(entry)
+                    ? entry
+                    : bySlug.get(entry)
+                )
+                .filter((s): s is string => Boolean(s))
+            )
+          )
+        );
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, wishlist]);
+
   /* persist */
   useEffect(() => {
     if (mounted) localStorage.setItem("bm_cart", JSON.stringify(cart));
@@ -277,6 +325,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   /* cart operations */
   const addToCart = useCallback(
     (item: {
+      slug?: string;
       name: string;
       price: number;
       image: string;
@@ -297,6 +346,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return [
           ...prev,
           {
+            slug: item.slug,
             name: item.name,
             price: item.price,
             image: normalizeImg(item.image),
@@ -306,8 +356,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         ];
       });
       setQuickView(null);
+      /* Feedback is the toast alone — auto-opening the drawer on every add
+         interrupts browsing; the header cart icon is there when they're ready. */
       showToast(`${item.name} added to your bag!`);
-      setCartOpen(true);
     },
     [showToast]
   );
@@ -343,23 +394,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  /* wishlist */
+  /* wishlist — keyed by product slug so saved items can be looked up in the
+     catalog. `label` is only ever used for the toast. */
   const toggleWishlist = useCallback(
-    (name: string) => {
+    (slug: string, label?: string) => {
+      const name = label ?? slug;
       setWishlist((prev) => {
-        if (prev.includes(name)) {
+        if (prev.includes(slug)) {
           showToast(`Removed ${name} from Wishlist`);
-          return prev.filter((n) => n !== name);
+          return prev.filter((s) => s !== slug);
         }
         showToast(`Added ${name} to Wishlist`, "heart");
-        return [...prev, name];
+        return [...prev, slug];
       });
     },
     [showToast]
   );
 
   const isWishlisted = useCallback(
-    (name: string) => wishlist.includes(name),
+    (slug: string) => wishlist.includes(slug),
     [wishlist]
   );
 
@@ -459,7 +512,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       {/* Toast stack */}
       <div
         id="toast-stack"
-        className="fixed bottom-20 md:bottom-8 right-6 z-[9999] flex flex-col gap-2 pointer-events-none"
+        /* Positioned by the #toast-stack rule in globals.css (bottom-left,
+           clear of the drawer CTA / chat launcher / mobile nav) — keep the
+           layout in one place. */
       >
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} />

@@ -72,16 +72,120 @@ interface ApiProduct {
   reviews: ApiReview[];
   ratingAverage: number | null;
   ratingCount: number;
+  relatedProducts: RelatedProduct[];
 }
 
 interface RelatedProduct {
   id: string;
   slug: string;
   name_en: string;
+  description_en: string;
   images: string[];
+  highlights: string[];
+  category: { slug: string; name_en: string } | null;
   productVariant: ApiVariant[];
 }
 
+
+function ProductDetailSkeleton() {
+  return (
+    <main aria-busy="true" aria-label="Loading product">
+      {/* Breadcrumbs */}
+      <div className="bg-cream/40 border-b border-cream py-4">
+        <div className="max-w-screen-2xl mx-auto px-6 md:px-12">
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-10 rounded-full bg-cream animate-pulse" />
+            <span className="h-3 w-3 rounded-full bg-cream animate-pulse" />
+            <span className="h-3 w-10 rounded-full bg-cream animate-pulse" />
+            <span className="h-3 w-3 rounded-full bg-cream animate-pulse" />
+            <span className="h-3 w-24 rounded-full bg-cream animate-pulse" />
+          </div>
+        </div>
+      </div>
+
+      {/* Showcase */}
+      <section className="py-12 md:py-20 bg-ivory">
+        <div className="max-w-screen-2xl mx-auto px-6 md:px-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
+            {/* Left: gallery */}
+            <div className="lg:col-span-6 flex flex-col sm:flex-row-reverse gap-3 sm:gap-4 w-full max-w-[520px] mx-auto lg:mx-0">
+              <div className="flex-1 min-w-0">
+                <div className="rounded-[28px] aspect-square bg-cream animate-pulse ring-1 ring-black/5" />
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-1 content-start gap-3 sm:w-20 md:w-24 shrink-0">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="rounded-2xl aspect-square bg-cream animate-pulse"
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Right: info */}
+            <div className="lg:col-span-6 flex flex-col justify-start">
+              <div className="border-b border-cream pb-6 mb-6">
+                <span className="block h-3 w-40 rounded-full bg-cream animate-pulse mb-4" />
+                <span className="block h-9 md:h-12 w-3/4 rounded-2xl bg-cream animate-pulse mb-4" />
+                <span className="block h-4 w-48 rounded-full bg-cream animate-pulse mb-5" />
+                <div className="flex items-baseline gap-3">
+                  <span className="h-9 w-32 rounded-2xl bg-cream animate-pulse" />
+                  <span className="h-4 w-16 rounded-full bg-cream animate-pulse" />
+                </div>
+              </div>
+
+              <div className="space-y-2.5 mb-8">
+                <span className="block h-3.5 w-full rounded-full bg-cream animate-pulse" />
+                <span className="block h-3.5 w-11/12 rounded-full bg-cream animate-pulse" />
+                <span className="block h-3.5 w-2/3 rounded-full bg-cream animate-pulse" />
+              </div>
+
+              {/* Size pills */}
+              <div className="mb-6">
+                <span className="block h-3 w-24 rounded-full bg-cream animate-pulse mb-3" />
+                <div className="flex flex-wrap gap-3">
+                  {[1, 2, 3].map((i) => (
+                    <span
+                      key={i}
+                      className="h-11 w-32 rounded-full bg-cream animate-pulse"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Qty + CTA */}
+              <div className="flex flex-col sm:flex-row gap-4 mb-8">
+                <span className="h-12 w-full sm:w-36 rounded-full bg-cream animate-pulse" />
+                <span className="h-12 flex-1 rounded-full bg-cream animate-pulse" />
+                <span className="h-12 w-full sm:w-24 rounded-full bg-cream animate-pulse" />
+              </div>
+
+              {/* Key benefits */}
+              <div className="grid grid-cols-3 gap-4 p-6 bg-cream/40 rounded-2xl border border-cream mb-8">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex flex-col items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-cream animate-pulse" />
+                    <span className="h-3 w-16 rounded-full bg-cream animate-pulse" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Accordion rows */}
+              <div className="border-t border-cream divide-y divide-cream">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="py-4 flex justify-between items-center">
+                    <span className="h-3 w-36 rounded-full bg-cream animate-pulse" />
+                    <span className="h-4 w-4 rounded-full bg-cream animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
 
 function Stars({ n, className = "" }: { n: number; className?: string }) {
   return (
@@ -119,19 +223,6 @@ export default function ProductDetailPage() {
   });
 
   const product = productQuery.data;
-
-  const relatedQuery = useQuery({
-    queryKey: ["products", "related", product?.category.slug],
-    enabled: Boolean(product?.category.slug),
-    queryFn: async (): Promise<RelatedProduct[]> => {
-      const res = await fetch(
-        `/api/products?category=${encodeURIComponent(product!.category.slug)}&limit=4`
-      );
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || "Failed to load related products");
-      return body.data.products;
-    },
-  });
 
   const images = useMemo(
     () =>
@@ -346,6 +437,7 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (!product || !selectedVariant) return;
     addToCart({
+      slug: product.slug,
       name: product.name_en,
       price: Number(selectedVariant.price),
       image: images[mainImgIndex] ?? PLACEHOLDER_IMAGE,
@@ -355,13 +447,7 @@ export default function ProductDetailPage() {
   };
 
   if (productQuery.isPending) {
-    return (
-      <main className="flex-1 flex items-center justify-center py-32">
-        <span className="text-xs uppercase tracking-widest text-muted">
-          Loading product…
-        </span>
-      </main>
-    );
+    return <ProductDetailSkeleton />;
   }
 
   if (productQuery.isError || !product) {
@@ -388,8 +474,8 @@ export default function ProductDetailPage() {
       ? Math.round(((compareAt - price) / compareAt) * 100)
       : 0;
   const inStock = (selectedVariant?.stock ?? 0) > 0;
-  const wishlisted = isWishlisted(product.name_en);
-  const related = (relatedQuery.data ?? []).filter((r) => r.slug !== product.slug);
+  const wishlisted = isWishlisted(product.slug);
+  const related = product.relatedProducts ?? [];
 
   const keyBenefit = ["100% Natural", "No Preservatives", "Naturally Sweet"];
 
@@ -642,7 +728,7 @@ export default function ProductDetailPage() {
 
                   <button
                     type="button"
-                    onClick={() => toggleWishlist(product.name_en)}
+                    onClick={() => toggleWishlist(product.slug, product.name_en)}
                     className={`px-5 py-4 rounded-full border text-xs font-bold uppercase tracking-widest transition ${wishlisted
                         ? "border-rose-300 bg-rose-50 text-rose-600"
                         : "border-cream bg-white text-muted hover:border-charcoal hover:text-charcoal"
@@ -760,43 +846,102 @@ export default function ProductDetailPage() {
 
         {/* Related Products */}
         {related.length > 0 && (
-          <section className="py-16 bg-[#F8F6F2] border-t border-cream">
+          <section className="py-16 md:py-20 bg-[#F8F6F2] border-t border-cream">
             <div className="max-w-screen-2xl mx-auto px-6 md:px-12">
-              <div className="flex justify-between items-center mb-10">
-                <h2 className="font-serif text-3xl text-charcoal">
-                  More in {product.category.name_en}
-                </h2>
+              <div className="flex flex-wrap justify-between items-end gap-4 mb-10">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-accent mb-2 block">
+                    Handpicked For You
+                  </span>
+                  <h2 className="font-serif text-3xl md:text-4xl text-charcoal">
+                    You May Also Like
+                  </h2>
+                </div>
                 <Link
                   href={`/shop?category=${encodeURIComponent(product.category.slug)}`}
                   className="text-xs uppercase tracking-widest font-bold text-accent hover:underline"
                 >
-                  View All →
+                  View All &rarr;
                 </Link>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-                {related.slice(0, 3).map((r) => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+                {related.slice(0, 4).map((r) => {
                   const rv = defaultVariant(r.productVariant);
+                  const rPrice = rv ? Number(rv.price) : 0;
+                  const rCompare = rv ? Number(rv.compare_at_price) : 0;
+                  const rImage = productImage(r.images);
+                  const rSoldOut = !rv || rv.stock === 0;
                   return (
                     <div
                       key={r.id}
-                      className="bg-white rounded-[28px] overflow-hidden shadow-sm p-6 flex flex-col justify-between"
+                      className="product-card bg-white rounded-[28px] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 group flex flex-col"
                     >
-                      <img
-                        src={productImage(r.images)}
-                        alt={r.name_en}
-                        className="w-full aspect-square object-cover rounded-2xl mb-4"
-                      />
-                      <h3 className="font-serif text-xl mb-1">{r.name_en}</h3>
-                      <p className="text-sm font-semibold text-accent mb-4">
-                        {rv ? formatPrice(Number(rv.price)) : "—"}
-                      </p>
                       <Link
                         href={`/product-detail/${r.slug}`}
-                        className="text-center py-3 bg-charcoal text-white text-xs uppercase tracking-wider rounded-full font-bold hover:bg-accent transition"
+                        className="relative block aspect-[4/3.8] overflow-hidden bg-[#FAF8F5]"
                       >
-                        View Product
+                        <img
+                          src={rImage}
+                          alt={r.name_en}
+                          className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                        />
+                        {r.highlights?.[0] && (
+                          <span className="absolute top-4 left-4 z-10 bg-[#F29F86] text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-md">
+                            {r.highlights[0]}
+                          </span>
+                        )}
                       </Link>
+
+                      <div className="p-6 flex-1 flex flex-col justify-between">
+                        <div>
+                          <span className="text-[10px] tracking-widest uppercase font-bold text-accent mb-1.5 block">
+                            {rv?.label ?? r.category?.name_en ?? "Thai Mango"}
+                          </span>
+                          <h3 className="font-serif text-xl text-charcoal mb-2 leading-snug">
+                            <Link
+                              href={`/product-detail/${r.slug}`}
+                              className="hover:text-accent transition"
+                            >
+                              {r.name_en}
+                            </Link>
+                          </h3>
+                          <p className="text-xs text-muted line-clamp-2 leading-relaxed mb-5">
+                            {r.description_en}
+                          </p>
+                        </div>
+
+                        <div className="pt-4 border-t border-cream flex items-center justify-between gap-3">
+                          <div>
+                            <span className="font-serif text-lg font-semibold text-charcoal">
+                              {rv ? formatPrice(rPrice) : "—"}
+                            </span>
+                            {rCompare > rPrice && (
+                              <span className="text-xs text-muted line-through ml-1.5">
+                                {formatPrice(rCompare)}
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            disabled={rSoldOut}
+                            onClick={() => {
+                              if (!rv) return;
+                              addToCart({
+                                slug: r.slug,
+                                name: r.name_en,
+                                price: rPrice,
+                                image: rImage,
+                                size: rv.label,
+                                quantity: 1,
+                              });
+                            }}
+                            className="px-4 py-2.5 bg-charcoal text-white rounded-full text-[11px] font-bold uppercase tracking-wider hover:bg-accent transition duration-300 disabled:opacity-40 disabled:hover:bg-charcoal"
+                          >
+                            {rSoldOut ? "Sold Out" : "Add to Bag"}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   );
                 })}

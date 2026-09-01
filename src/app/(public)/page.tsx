@@ -159,13 +159,9 @@ export default function Home() {
     return match ? productImage([match]) : FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
   };
 
-  /* Hero title renders its last word in the accent color */
-  const heroWords = content(
-    "hero_title",
-    `${t("hero_title_1")} ${t("hero_title_2")}`
-  ).split(" ");
-  const heroLead = heroWords.slice(0, -1).join(" ");
-  const heroAccent = heroWords[heroWords.length - 1];
+  /* Hero title: fixed brand name, accent word in the accent color */
+  const heroLead = "BANGKOK";
+  const heroAccent = "MANGO";
 
   const productsPending = productsQuery.isPending;
 
@@ -193,8 +189,8 @@ export default function Home() {
 
         {/* Content */}
         <div className="relative z-10 w-full max-w-screen-2xl mx-auto px-6 md:px-12 flex-1 flex items-center justify-start">
-          <div className="max-w-2xl text-left text-white reveal">
-            <h1 className="font-serif font-medium text-5xl md:text-[5.5rem] leading-[1.1] mb-6 tracking-tight uppercase">
+          <div className="max-w-4xl text-left text-white reveal">
+            <h1 className="font-serif font-medium text-5xl md:text-[5rem] leading-[1.1] mb-6 tracking-tight uppercase">
               {heroLead && <span>{heroLead} </span>}
               <span className="text-[#F29F86]">{heroAccent}</span>
             </h1>
@@ -484,6 +480,7 @@ export default function Home() {
                         e.preventDefault();
                         e.stopPropagation();
                         addToCart({
+                          slug: product.slug,
                           name: product.name,
                           price: product.price,
                           image: product.image,

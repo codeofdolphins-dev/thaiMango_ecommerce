@@ -115,7 +115,8 @@ export default function StripeCardForm({
 }: StripeCardFormProps) {
   /* Currency and the publishable key follow admin Settings — never hardcoded. */
   const { currency, settings } = useStore();
-  const publishableKey = settings?.stripe_publishable_key;
+  /* stripe_pk is the server-resolved key (saved value or .env fallback). */
+  const publishableKey = settings?.stripe_pk;
   const stripePromise = useMemo(
     () => (isUsableKey(publishableKey) ? getStripe(publishableKey) : null),
     [publishableKey]

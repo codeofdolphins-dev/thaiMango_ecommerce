@@ -13,12 +13,6 @@
   --color-gold: #E5B869;
   --color-mango: #F4A228;
 
-  /* Admin "Command Center" theme */
-  --color-peach: #F29F86;
-  --color-peach-deep: #EE8E76;
-  --color-peach-soft: #FDEDE7;
-  --color-ink: #2B3A4A;
-
   --font-sans: var(--font-inter), 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-serif: var(--font-playfair), 'Playfair Display', Georgia, Cambria, 'Times New Roman', Times, serif;
   --font-camera: 'ABC Camera Plain Variable', 'ABC Camera', var(--font-inter), sans-serif;
@@ -38,7 +32,8 @@
   --color-muted: #7A7571;
 }
 .palette-account {
-  /* login, register, dashboard */
+  /* login, register, dashboard — and the admin portal, which deliberately
+     shares the account palette so the two dashboards read as one brand. */
   --color-ivory: #F7F4EE;
   --color-cream: #EFE9DF;
   --color-charcoal: #24211E;
@@ -275,15 +270,24 @@ body {
 }
 
 /* Toast notifications */
+/* Bottom-LEFT on purpose: the right edge is already contested — the cart
+   drawer's checkout button, the chat launcher and the mobile bottom nav all
+   live there, and toasts were covering the drawer's CTA. */
 #toast-stack {
   position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
+  bottom: 5.25rem; /* clears the 68px mobile bottom nav */
+  left: 1.5rem;
   z-index: 70;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 0.5rem;
   pointer-events: none;
+}
+@media (min-width: 1024px) {
+  #toast-stack {
+    bottom: 1.5rem; /* no bottom nav on desktop */
+  }
 }
 .toast {
   opacity: 0;

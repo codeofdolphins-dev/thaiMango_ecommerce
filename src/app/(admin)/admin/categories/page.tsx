@@ -26,7 +26,7 @@ interface AdminCategory {
 }
 
 const inputCls =
-  "w-full px-4 py-2.5 rounded-xl border border-stone-200/70 bg-white text-sm focus:outline-none focus:border-peach transition placeholder:text-muted/60";
+  "w-full px-4 py-2.5 rounded-xl border border-cream bg-white text-sm focus:outline-none focus:border-accent transition placeholder:text-muted/60";
 const labelCls =
   "block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1.5";
 
@@ -138,7 +138,7 @@ export default function CategoriesPage() {
       >
         <button
           onClick={openCreate}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-peach to-peach-deep text-white text-sm font-semibold hover:opacity-95 transition"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-accent text-white text-xs font-bold uppercase tracking-widest hover:bg-burgundy transition"
         >
           <Plus className="w-4 h-4" />
           Add Category
@@ -148,12 +148,12 @@ export default function CategoriesPage() {
       {formOpen && (
         <Card className="p-6 mb-6">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal">
               {editingId === null ? "New Category" : "Edit Category"}
             </h2>
             <button
               onClick={closeForm}
-              className="w-8 h-8 rounded-lg text-muted hover:text-ink hover:bg-stone-100 transition flex items-center justify-center"
+              className="w-8 h-8 rounded-lg text-muted hover:text-charcoal hover:bg-cream transition flex items-center justify-center"
               aria-label="Close form"
             >
               <X className="w-4 h-4" />
@@ -183,7 +183,7 @@ export default function CategoriesPage() {
             <div>
               <label className={labelCls}>Slug</label>
               <input
-                className={`${inputCls} bg-stone-50 text-muted cursor-not-allowed`}
+                className={`${inputCls} bg-ivory text-muted cursor-not-allowed`}
                 placeholder="classic-cuts"
                 readOnly
                 {...register("slug")}
@@ -199,7 +199,7 @@ export default function CategoriesPage() {
               <button
                 type="submit"
                 disabled={saveMutation.isPending}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-peach to-peach-deep text-white text-sm font-semibold hover:opacity-95 transition disabled:opacity-60"
+                className="px-5 py-2.5 rounded-full bg-accent text-white text-xs font-bold uppercase tracking-widest hover:bg-burgundy transition disabled:opacity-60"
               >
                 {saveMutation.isPending
                   ? "Saving…"
@@ -235,7 +235,7 @@ export default function CategoriesPage() {
             <Card key={cat.id} className="p-6">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h3 className="text-lg font-bold uppercase tracking-wide text-ink">
+                  <h3 className="text-lg font-bold uppercase tracking-wide text-charcoal">
                     {cat.name_en}
                   </h3>
                   <p className="text-xs text-muted mt-1">
@@ -246,7 +246,7 @@ export default function CategoriesPage() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => openEdit(cat)}
-                    className="w-8 h-8 rounded-lg text-muted hover:text-peach hover:bg-peach-soft transition flex items-center justify-center"
+                    className="w-8 h-8 rounded-lg text-muted hover:text-accent hover:bg-cream transition flex items-center justify-center"
                     aria-label={`Edit ${cat.name_en}`}
                   >
                     <Pencil className="w-4 h-4" />

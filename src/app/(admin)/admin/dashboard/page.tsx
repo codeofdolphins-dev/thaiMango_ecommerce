@@ -56,7 +56,7 @@ function Stars({ n }: { n: number }) {
         <Star
           key={i}
           className={`w-3 h-3 ${
-            i <= n ? "text-amber-400 fill-amber-400" : "text-stone-300"
+            i <= n ? "text-amber-400 fill-amber-400" : "text-muted/50"
           }`}
         />
       ))}
@@ -174,28 +174,28 @@ export default function DashboardPage() {
               (ordersQuery.data ?? []).slice(0, 4).map((o) => (
                 <div
                   key={o.id}
-                  className="flex items-center gap-4 p-3.5 rounded-xl border border-stone-200/70 hover:border-peach/50 hover:bg-peach-soft/40 transition group"
+                  className="flex items-center gap-4 p-3.5 rounded-xl border border-cream hover:border-accent/50 hover:bg-cream/40 transition group"
                 >
-                  <span className="w-10 h-10 rounded-full bg-[#F5F4F1] flex items-center justify-center text-slate-400 shrink-0">
+                  <span className="w-10 h-10 rounded-full bg-ivory flex items-center justify-center text-muted/70 shrink-0">
                     <Clock className="w-4 h-4" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-bold text-ink uppercase tracking-wide truncate">
+                    <div className="text-sm font-bold text-charcoal uppercase tracking-wide truncate">
                       Order #TM-{String(o.order_no).padStart(5, "0")}
                     </div>
-                    <div className="text-xs text-slate-400 font-medium">
+                    <div className="text-xs text-muted/70 font-medium">
                       {money(Number(o.total))} · {o.user.name}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="text-xs font-semibold text-slate-500">
+                    <div className="text-xs font-semibold text-muted">
                       {new Date(o.created_at).toLocaleDateString("en-IN")}
                     </div>
-                    <div className="text-[11px] font-bold uppercase tracking-wide text-peach">
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-accent">
                       {o.status}
                     </div>
                   </div>
-                  <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-peach transition shrink-0" />
+                  <ArrowUpRight className="w-4 h-4 text-muted/50 group-hover:text-accent transition shrink-0" />
                 </div>
               ))
             )}
@@ -220,24 +220,24 @@ export default function DashboardPage() {
               (reviewsQuery.data ?? []).slice(0, 4).map((r) => (
                 <div
                   key={r.id}
-                  className="flex items-center gap-4 p-3.5 rounded-xl border border-stone-200/70 hover:border-peach/50 hover:bg-peach-soft/40 transition group"
+                  className="flex items-center gap-4 p-3.5 rounded-xl border border-cream hover:border-accent/50 hover:bg-cream/40 transition group"
                 >
-                  <span className="w-10 h-10 rounded-full bg-[#F5F4F1] flex items-center justify-center text-slate-400 shrink-0">
+                  <span className="w-10 h-10 rounded-full bg-ivory flex items-center justify-center text-muted/70 shrink-0">
                     <MessageSquare className="w-4 h-4" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-bold text-ink truncate">
+                    <div className="text-sm font-bold text-charcoal truncate">
                       {r.product.name_en}
                     </div>
-                    <div className="text-xs text-slate-400 font-medium">{r.user.name}</div>
+                    <div className="text-xs text-muted/70 font-medium">{r.user.name}</div>
                   </div>
                   <div className="text-right shrink-0">
                     <Stars n={r.rating} />
-                    <div className="text-[11px] font-bold uppercase tracking-wide text-peach mt-1">
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-accent mt-1">
                       {r.status}
                     </div>
                   </div>
-                  <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-peach transition shrink-0" />
+                  <ArrowUpRight className="w-4 h-4 text-muted/50 group-hover:text-accent transition shrink-0" />
                 </div>
               ))
             )}

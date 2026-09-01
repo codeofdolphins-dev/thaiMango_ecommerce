@@ -23,7 +23,7 @@ interface AdminCoupon {
 }
 
 const inputCls =
-  "w-full px-4 py-2.5 rounded-xl border border-stone-200/70 bg-white text-sm focus:outline-none focus:border-peach transition placeholder:text-muted/60";
+  "w-full px-4 py-2.5 rounded-xl border border-cream bg-white text-sm focus:outline-none focus:border-accent transition placeholder:text-muted/60";
 const labelCls =
   "block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1.5";
 
@@ -140,7 +140,7 @@ export default function CouponsPage() {
       <PageHeader title="Coupons" subtitle="Discount codes & promotions">
         <button
           onClick={openCreate}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-peach to-peach-deep text-white text-sm font-semibold uppercase tracking-wide shadow-sm shadow-peach/30 hover:opacity-95 transition"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-accent text-white text-xs font-bold uppercase tracking-widest shadow-sm shadow-accent/25 hover:bg-burgundy transition"
         >
           <Plus className="w-4 h-4" />
           New Coupon
@@ -150,12 +150,12 @@ export default function CouponsPage() {
       {formOpen && (
         <Card className="p-6 mb-6">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal">
               {editingId === null ? "New Coupon" : "Edit Coupon"}
             </h2>
             <button
               onClick={closeForm}
-              className="w-8 h-8 rounded-lg text-muted hover:text-ink hover:bg-stone-100 transition flex items-center justify-center"
+              className="w-8 h-8 rounded-lg text-muted hover:text-charcoal hover:bg-cream transition flex items-center justify-center"
               aria-label="Close form"
             >
               <X className="w-4 h-4" />
@@ -221,7 +221,7 @@ export default function CouponsPage() {
               <button
                 type="submit"
                 disabled={saveMutation.isPending}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-peach to-peach-deep text-white text-sm font-semibold hover:opacity-95 transition disabled:opacity-60"
+                className="px-5 py-2.5 rounded-full bg-accent text-white text-xs font-bold uppercase tracking-widest hover:bg-burgundy transition disabled:opacity-60"
               >
                 {saveMutation.isPending
                   ? "Saving…"
@@ -247,7 +247,7 @@ export default function CouponsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[720px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-slate-400 border-b border-stone-200/70 bg-[#F5F4F1]">
+              <tr className="text-left text-[11px] uppercase tracking-wider text-muted/70 border-b border-cream bg-ivory">
                 <th className="font-semibold px-5 py-3.5">Code</th>
                 <th className="font-semibold px-5 py-3.5">Description</th>
                 <th className="font-semibold px-5 py-3.5">Discount</th>
@@ -274,32 +274,32 @@ export default function CouponsPage() {
                 coupons.map((c) => (
                   <tr
                     key={c.id}
-                    className="border-b border-stone-100 last:border-0 hover:bg-peach-soft/30 transition"
+                    className="border-b border-cream/60 last:border-0 hover:bg-cream/30 transition"
                   >
                     <td className="px-5 py-4">
-                      <span className="inline-flex items-center gap-2 font-bold text-ink">
-                        <span className="w-7 h-7 rounded-lg bg-peach-soft flex items-center justify-center">
-                          <Ticket className="w-3.5 h-3.5 text-peach" />
+                      <span className="inline-flex items-center gap-2 font-bold text-charcoal">
+                        <span className="w-7 h-7 rounded-lg bg-cream flex items-center justify-center">
+                          <Ticket className="w-3.5 h-3.5 text-accent" />
                         </span>
                         {c.code}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-slate-500">{c.description}</td>
-                    <td className="px-5 py-4 font-semibold text-peach">{c.discount_pct}%</td>
+                    <td className="px-5 py-4 text-muted">{c.description}</td>
+                    <td className="px-5 py-4 font-semibold text-accent">{c.discount_pct}%</td>
                     <td className="px-5 py-4 whitespace-nowrap">
                       <div className="text-charcoal font-medium text-xs mb-1">
                         {c.used} / {c.usage_limit}
                       </div>
-                      <div className="w-24 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                      <div className="w-24 h-1.5 bg-cream rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-peach rounded-full"
+                          className="h-full bg-accent rounded-full"
                           style={{
                             width: `${Math.min(100, (c.used / c.usage_limit) * 100)}%`,
                           }}
                         />
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-slate-500 whitespace-nowrap">
+                    <td className="px-5 py-4 text-muted whitespace-nowrap">
                       {new Date(c.expires_at).toLocaleDateString("en-IN")}
                     </td>
                     <td className="px-5 py-4">
@@ -316,7 +316,7 @@ export default function CouponsPage() {
                           className={`w-8 h-8 rounded-lg flex items-center justify-center transition disabled:opacity-50 ${
                             c.is_active
                               ? "text-emerald-600 hover:bg-emerald-50"
-                              : "text-slate-400 hover:bg-stone-100"
+                              : "text-muted/70 hover:bg-cream"
                           }`}
                           aria-label={c.is_active ? `Deactivate ${c.code}` : `Activate ${c.code}`}
                           title={c.is_active ? "Deactivate" : "Activate"}
@@ -325,7 +325,7 @@ export default function CouponsPage() {
                         </button>
                         <button
                           onClick={() => openEdit(c)}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-peach hover:bg-peach-soft transition"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-muted/70 hover:text-accent hover:bg-cream transition"
                           aria-label={`Edit ${c.code}`}
                         >
                           <Pencil className="w-4 h-4" />
@@ -338,7 +338,7 @@ export default function CouponsPage() {
                             }
                           }}
                           disabled={deleteMutation.isPending}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-muted/70 hover:text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
                           aria-label={`Delete ${c.code}`}
                         >
                           <Trash2 className="w-4 h-4" />

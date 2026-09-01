@@ -58,13 +58,13 @@ function StockEditor({
         min={0}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="w-20 px-2.5 py-1.5 rounded-lg border border-stone-200/70 bg-white text-sm font-semibold text-charcoal focus:outline-none focus:border-peach transition"
+        className="w-20 px-2.5 py-1.5 rounded-lg border border-cream bg-white text-sm font-semibold text-charcoal focus:outline-none focus:border-accent transition"
         aria-label={`Stock for ${row.productName} — ${row.variant.label}`}
       />
       <button
         disabled={!dirty || saving || Number(value) < 0 || !Number.isInteger(Number(value))}
         onClick={() => onSave(row, Number(value))}
-        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-white bg-peach hover:opacity-90 transition disabled:opacity-30"
+        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-white bg-accent hover:opacity-90 transition disabled:opacity-30"
         aria-label={`Save stock for ${row.productName} — ${row.variant.label}`}
       >
         <Check className="w-4 h-4" />
@@ -146,7 +146,7 @@ export default function InventoryPage() {
           <span className="text-xs font-semibold uppercase tracking-wider text-muted">
             Units in Stock
           </span>
-          <div className="text-3xl font-bold text-ink mt-2">
+          <div className="text-3xl font-bold text-charcoal mt-2">
             {productsQuery.isPending ? "…" : totalUnits.toLocaleString("en-IN")}
           </div>
         </Card>
@@ -154,7 +154,7 @@ export default function InventoryPage() {
           <span className="text-xs font-semibold uppercase tracking-wider text-muted">
             Stock Value
           </span>
-          <div className="text-3xl font-bold text-ink mt-2">
+          <div className="text-3xl font-bold text-charcoal mt-2">
             {productsQuery.isPending ? "…" : money(stockValue)}
           </div>
         </Card>
@@ -193,14 +193,14 @@ export default function InventoryPage() {
       )}
 
       <Card className="overflow-hidden">
-        <div className="flex items-center gap-2 p-5 border-b border-stone-200/70">
-          <PackageCheck className="w-4 h-4 text-peach" />
-          <h2 className="text-base font-bold uppercase tracking-wide text-ink">Stock Levels</h2>
+        <div className="flex items-center gap-2 p-5 border-b border-cream">
+          <PackageCheck className="w-4 h-4 text-accent" />
+          <h2 className="text-base font-bold uppercase tracking-wide text-charcoal">Stock Levels</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[720px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-muted border-b border-stone-200/70 bg-[#F5F4F1]">
+              <tr className="text-left text-[11px] uppercase tracking-wider text-muted border-b border-cream bg-ivory">
                 <th className="font-semibold px-5 py-3">Product</th>
                 <th className="font-semibold px-5 py-3">Variant</th>
                 <th className="font-semibold px-5 py-3">SKU</th>
@@ -235,7 +235,7 @@ export default function InventoryPage() {
                   return (
                     <tr
                       key={row.variant.id}
-                      className="border-b border-stone-100 last:border-0 hover:bg-peach-soft/30 transition"
+                      className="border-b border-cream/60 last:border-0 hover:bg-cream/30 transition"
                     >
                       <td className="px-5 py-3.5 font-medium text-charcoal max-w-[240px] truncate">
                         {row.productName}
@@ -243,7 +243,7 @@ export default function InventoryPage() {
                       <td className="px-5 py-3.5 text-muted whitespace-nowrap">
                         {row.variant.label}
                         {row.variant.is_default && (
-                          <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-peach">
+                          <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
                             Default
                           </span>
                         )}
@@ -263,7 +263,7 @@ export default function InventoryPage() {
                         />
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="w-full h-2 bg-stone-100 rounded-full overflow-hidden">
+                        <div className="w-full h-2 bg-cream rounded-full overflow-hidden">
                           <div
                             className={`h-full rounded-full ${color}`}
                             style={{ width: `${pct}%` }}

@@ -5,9 +5,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ChevronLeft, Upload } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import Select from "react-select";
 import { Card, PageHeader } from "@/components/admin/ui";
+import ImageUploader from "@/components/admin/ImageUploader";
 import { adminSelectStyles, SelectOption } from "@/components/admin/selectStyles";
 import VariantsEditor, {
   emptyVariant,
@@ -16,7 +17,7 @@ import VariantsEditor, {
 import { productSchema } from "@/schemas/product.schema";
 
 const inputCls =
-  "w-full px-4 py-2.5 rounded-xl border border-stone-200/70 bg-white text-sm focus:outline-none focus:border-peach transition placeholder:text-muted/60";
+  "w-full px-4 py-2.5 rounded-xl border border-cream bg-white text-sm focus:outline-none focus:border-accent transition placeholder:text-muted/60";
 const labelCls =
   "block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1.5";
 
@@ -69,8 +70,8 @@ interface FormValues {
   variants: VariantFormRow[];
 }
 
-const splitList = (s: string) =>
-  s
+const splitList = (s: string | null | undefined) =>
+  (s ?? "")
     .split(",")
     .map((x) => x.trim())
     .filter(Boolean);
@@ -98,6 +99,19 @@ export default function NewProductPage() {
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
+      name_en: "",
+      name_th: "",
+      slug: "",
+      description_en: "",
+      description_th: "",
+      /* The list fields are comma-joined strings; leaving them undefined makes
+         the controlled inputs (and splitList) blow up on first render. */
+      tags: "",
+      highlights: "",
+      images: "",
+      how_its_made: "",
+      storage_info: "",
+      ingredients: "",
       status: "DRAFT",
       category_id: "",
       variants: [{ ...emptyVariant(), is_default: true }],
@@ -231,7 +245,7 @@ export default function NewProductPage() {
           type="button"
           disabled={createMutation.isPending}
           onClick={handleSubmit((v) => onSubmit(v, "DRAFT"))}
-          className="px-4 py-2.5 rounded-xl border border-stone-200/70 bg-white text-sm font-semibold text-charcoal hover:border-peach transition disabled:opacity-60"
+          className="px-4 py-2.5 rounded-full border border-cream bg-white text-sm font-semibold text-charcoal hover:border-accent transition disabled:opacity-60"
         >
           {createMutation.isPending ? "Saving…" : "Save as Draft"}
         </button>
@@ -239,7 +253,7 @@ export default function NewProductPage() {
           type="button"
           disabled={createMutation.isPending}
           onClick={handleSubmit((v) => onSubmit(v, "ACTIVE"))}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-peach to-peach-deep text-white text-sm font-semibold hover:opacity-95 transition disabled:opacity-60"
+          className="px-4 py-2.5 rounded-full bg-accent text-white text-xs font-bold uppercase tracking-widest hover:bg-burgundy transition disabled:opacity-60"
         >
           {createMutation.isPending ? "Saving…" : "Publish Product"}
         </button>
@@ -258,7 +272,7 @@ export default function NewProductPage() {
         {/* Left: main fields */}
         <div className="lg:col-span-2 space-y-5">
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-5">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-5">
               General Information
             </h2>
             <div className="space-y-5">
@@ -285,7 +299,7 @@ export default function NewProductPage() {
               <div>
                 <label className={labelCls}>Slug</label>
                 <input
-                  className={`${inputCls} bg-stone-50 text-muted cursor-not-allowed`}
+                  className={`${inputCls} bg-ivory text-muted cursor-not-allowed`}
                   placeholder="chili-lime-bites"
                   readOnly
                   {...register("slug")}
@@ -326,7 +340,7 @@ export default function NewProductPage() {
           />
 
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-5">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-5">
               Product Details
             </h2>
             <div className="space-y-5">
@@ -364,29 +378,28 @@ export default function NewProductPage() {
           </Card>
 
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-5">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-5">
               Product Images
             </h2>
-            <div>
-              <label className={labelCls}>Image Paths (comma-separated)</label>
-              <input
-                className={inputCls}
-                placeholder="/images/bangkok-mango-beetroot-1.png, /images/bangkok-mango-beetroot-2.png"
-                {...register("images")}
-              />
-            </div>
-            <p className="text-[11px] text-muted mt-3 flex items-center gap-1.5">
-              <Upload className="w-3.5 h-3.5" />
-              File upload isn&apos;t wired yet — reference images already in /public/images.
-              First image is the cover.
-            </p>
+            {/* Stored in the form as a comma-joined string so the submit
+                handler's splitList() stays unchanged. */}
+            <Controller
+              control={control}
+              name="images"
+              render={({ field }) => (
+                <ImageUploader
+                  value={splitList(field.value)}
+                  onChange={(next) => field.onChange(next.join(", "))}
+                />
+              )}
+            />
           </Card>
         </div>
 
         {/* Right: organization */}
         <div className="space-y-5">
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-5">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-5">
               Organization
             </h2>
             <div className="space-y-5">

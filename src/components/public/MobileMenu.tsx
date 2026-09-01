@@ -105,8 +105,16 @@ const subLabel =
   "text-xs md:text-sm font-bold tracking-widest text-[#334155] uppercase font-sans group-hover:text-[#F29F86] transition-colors";
 
 export default function MobileMenu() {
-  const { menuOpen, closeMenu, menuOrigin, lang, setLang, showToast, openSearch } =
-    useStore();
+  const {
+    menuOpen,
+    closeMenu,
+    menuOrigin,
+    lang,
+    setLang,
+    showToast,
+    openSearch,
+    settings,
+  } = useStore();
   const [activeTab, setActiveTab] = useState<MenuTab>("shop");
   const [promo, setPromo] = useState<PromoContent>(menuPromoData.shop);
   const [linksActive, setLinksActive] = useState(false);
@@ -260,7 +268,7 @@ export default function MobileMenu() {
       {/* Main: Multi-column Menu (Left Categories + Middle Sub-items + Right Promo Image) */}
       <div className="flex-1 max-w-7xl w-full mx-auto px-6 md:px-12 py-8 md:py-12 flex flex-col lg:flex-row items-center lg:items-stretch justify-between gap-8 lg:gap-12">
         {/* Left Column: Primary Sections */}
-        <div className="w-full lg:w-[380px] xl:w-[420px] flex flex-col justify-center gap-3 md:gap-4 shrink-0">
+        <div className="w-full lg:w-95 xl:w-105 flex flex-col justify-center gap-3 md:gap-4 shrink-0">
           {/* 1. Shop Products */}
           <div
             className={navCard("shop")}
@@ -269,7 +277,7 @@ export default function MobileMenu() {
           >
             <div className="pr-3">
               <h3 className={navTitle("shop")}>SHOP PRODUCTS</h3>
-              <p className={navSub("shop")}>DISCOVER YOUR SELECTION</p>
+              <p className={navSub("shop")}>DISCOVER YOUR SELECTION Category</p>
             </div>
             <Link
               href="/shop"
@@ -648,15 +656,17 @@ export default function MobileMenu() {
             >
               <Search className="w-4 h-4 sm:w-5 sm:h-5 font-light" />
             </a>
-            <a
-              href="https://instagram.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-[#F29F86] transition"
-              aria-label="Instagram"
-            >
-              <InstagramIcon className="w-4 h-4 sm:w-5 sm:h-5 font-light" />
-            </a>
+            {settings?.social_instagram && (
+              <a
+                href={settings.social_instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[#F29F86] transition"
+                aria-label="Instagram"
+              >
+                <InstagramIcon className="w-4 h-4 sm:w-5 sm:h-5 font-light" />
+              </a>
+            )}
           </div>
           <p className="text-[10px] tracking-widest uppercase text-muted">
             © 2026 THAI MANGO

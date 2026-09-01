@@ -134,7 +134,7 @@ export default function ProductsPage() {
       >
         <Link
           href="/admin/products/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-peach to-peach-deep text-white text-sm font-semibold hover:opacity-95 transition"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-accent text-white text-xs font-bold uppercase tracking-widest hover:bg-burgundy transition"
         >
           <Plus className="w-4 h-4" />
           Add Product
@@ -149,14 +149,14 @@ export default function ProductsPage() {
 
       <Card className="overflow-hidden">
         {/* Toolbar */}
-        <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 border-b border-stone-200/70">
+        <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 border-b border-cream">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             <button
               onClick={() => setCategoryId("all")}
               className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
                 categoryId === "all"
-                  ? "bg-gradient-to-r from-peach to-peach-deep text-white shadow-sm shadow-peach/30"
-                  : "text-muted hover:bg-peach-soft"
+                  ? "bg-accent text-white shadow-sm shadow-accent/25"
+                  : "text-muted hover:bg-cream"
               }`}
             >
               All
@@ -167,8 +167,8 @@ export default function ProductsPage() {
                 onClick={() => setCategoryId(c.id)}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
                   categoryId === c.id
-                    ? "bg-gradient-to-r from-peach to-peach-deep text-white shadow-sm shadow-peach/30"
-                    : "text-muted hover:bg-peach-soft"
+                    ? "bg-accent text-white shadow-sm shadow-accent/25"
+                    : "text-muted hover:bg-cream"
                 }`}
               >
                 {c.name_en}
@@ -181,7 +181,7 @@ export default function ProductsPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search products…"
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-[#F5F4F1] border border-stone-200/70 text-sm focus:outline-none focus:border-peach transition"
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-ivory border border-cream text-sm focus:outline-none focus:border-accent transition"
             />
           </div>
         </div>
@@ -189,7 +189,7 @@ export default function ProductsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[760px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-muted border-b border-stone-200/70 bg-[#F5F4F1]">
+              <tr className="text-left text-[11px] uppercase tracking-wider text-muted border-b border-cream bg-ivory">
                 <th className="font-semibold px-5 py-3">Product</th>
                 <th className="font-semibold px-5 py-3">SKU</th>
                 <th className="font-semibold px-5 py-3">Category</th>
@@ -217,7 +217,7 @@ export default function ProductsPage() {
                     return (
                       <tr
                         key={p.id}
-                        className="border-b border-stone-100 last:border-0 hover:bg-peach-soft/30 transition"
+                        className="border-b border-cream/60 last:border-0 hover:bg-cream/30 transition"
                       >
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
@@ -234,7 +234,7 @@ export default function ProductsPage() {
                         <td className="px-5 py-3.5 text-muted whitespace-nowrap">
                           {v?.sku ?? "—"}
                           {variantCount > 1 && (
-                            <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-peach">
+                            <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
                               +{variantCount - 1} more
                             </span>
                           )}
@@ -296,7 +296,7 @@ export default function ProductsPage() {
                             </div>
                             <Link
                               href={`/admin/products/${p.id}/edit`}
-                              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-peach hover:bg-peach-soft transition"
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:text-accent hover:bg-cream transition"
                               aria-label={`Edit ${p.name_en}`}
                               title="Edit product"
                             >

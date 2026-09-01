@@ -20,6 +20,7 @@ import {
 import { useStore } from "@/components/public/store";
 import { defaultVariant } from "@/lib/variants";
 import { productImage } from "@/lib/images";
+import { tipsForPreference } from "@/lib/flavor-tips";
 import PhoneField from "@/components/common/PhoneField";
 
 type TabKey =
@@ -35,6 +36,7 @@ type OrderStatus = "PENDING" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELL
 interface MyOrderItem {
   id: number;
   name: string;
+  variant_label: string | null;
   price: string;
   quantity: number;
   product: { slug: string; images: string[] } | null;
@@ -47,6 +49,12 @@ interface MyOrder {
   payment: "PREPAID" | "COD";
   total: string;
   created_at: string;
+  ship_name: string;
+  ship_line1: string;
+  ship_city: string;
+  ship_state: string;
+  ship_pincode: string;
+  ship_country: string;
   items: MyOrderItem[];
 }
 
@@ -60,9 +68,11 @@ interface MyAddress {
 }
 
 interface ShopProduct {
+  slug: string;
   name_en: string;
   description_en: string;
   images: string[];
+  category?: { slug: string; name_en: string } | null;
   productVariant: { label: string; price: string; is_default: boolean; stock: number }[];
 }
 
@@ -177,6 +187,18 @@ export default function DashboardPage() {
     },
   });
 
+  /* The wishlist stores slugs; resolve them against the catalog so the cards
+     can show the real photo and price. */
+  const catalogQuery = useQuery({
+    queryKey: ["products", "catalog"],
+    enabled: wishlist.length > 0,
+    queryFn: async (): Promise<ShopProduct[]> => {
+      const res = await fetch("/api/products?limit=100");
+      const data = await throwOnError(res);
+      return data.products;
+    },
+  });
+
   const addAddressMutation = useMutation({
     mutationFn: async (values: typeof addressDraft) => {
       const res = await fetch("/api/addresses", {
@@ -277,8 +299,10 @@ export default function DashboardPage() {
   const panelClass = (tab: TabKey, spacing: string) =>
     `dash-tab-content ${spacing} ${activeTab === tab ? "active" : "hidden"}`;
 
+  const flavorTips = tipsForPreference(activeUser.skinType);
+
   const handleClearWishlist = () => {
-    wishlist.forEach((name) => toggleWishlist(name));
+    wishlist.forEach((slug) => toggleWishlist(slug));
     showToast("Wishlist cleared");
   };
 
@@ -553,6 +577,7 @@ export default function DashboardPage() {
                   <button
                     onClick={() =>
                       addToCart({
+                        slug: recommended.slug,
                         name: recommended.name_en,
                         price: Number(
                           defaultVariant(recommended.productVariant)?.price ?? 0
@@ -647,7 +672,9 @@ export default function DashboardPage() {
                               {item.name}
                             </h4>
                             <span className="text-[11px] text-muted">
-                              Qty: {item.quantity}
+                              {item.variant_label
+                                ? `${item.variant_label} · Qty: ${item.quantity}`
+                                : `Qty: ${item.quantity}`}
                             </span>
                             <span className="text-xs font-semibold text-accent block mt-1">
                               {formatPrice(Number(item.price))} ({o.payment === "COD" ? "COD" : "Prepaid"})
@@ -657,6 +684,7 @@ export default function DashboardPage() {
                         <button
                           onClick={() =>
                             addToCart({
+                              slug: item.product?.slug,
                               name: item.name,
                               price: Number(item.price),
                               image: productImage(item.product?.images),
@@ -668,8 +696,19 @@ export default function DashboardPage() {
                         </button>
                       </div>
                     ))}
-                    <div className="pt-3 border-t border-cream text-right text-sm font-bold text-charcoal">
-                      Total: {formatPrice(Number(o.total))}
+                    <div className="pt-3 border-t border-cream flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                      <div className="text-[11px] text-muted leading-relaxed">
+                        <span className="uppercase tracking-wider font-semibold block text-charcoal mb-0.5">
+                          Delivered to
+                        </span>
+                        {o.ship_name}
+                        <br />
+                        {o.ship_line1}, {o.ship_city}, {o.ship_state} -{" "}
+                        {o.ship_pincode}
+                      </div>
+                      <span className="text-sm font-bold text-charcoal shrink-0">
+                        Total: {formatPrice(Number(o.total))}
+                      </span>
                     </div>
                   </div>
                 ))
@@ -716,37 +755,57 @@ export default function DashboardPage() {
                   </Link>
                 </div>
               ) : (
-                wishlist.map((name) => (
-                  <div
-                    key={name}
-                    className="p-4 rounded-3xl bg-ivory border border-cream flex flex-col justify-between group"
-                  >
-                    <div className="relative rounded-2xl overflow-hidden aspect-square bg-white mb-4 flex items-center justify-center">
-                      <Heart className="w-10 h-10 text-rose-300 fill-rose-200" />
-                      <button
-                        onClick={() => toggleWishlist(name)}
-                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 text-rose-600 hover:bg-rose-600 hover:text-white flex items-center justify-center transition shadow-sm"
-                        title="Remove"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                wishlist.map((slug) => {
+                  const product = catalogQuery.data?.find((p) => p.slug === slug);
+                  const variant = product
+                    ? defaultVariant(product.productVariant)
+                    : null;
+                  return (
+                    <div
+                      key={slug}
+                      className="p-4 rounded-3xl bg-ivory border border-cream flex flex-col justify-between group"
+                    >
+                      <div className="relative rounded-2xl overflow-hidden aspect-square bg-white mb-4 flex items-center justify-center">
+                        {product ? (
+                          <img
+                            src={productImage(product.images)}
+                            alt={product.name_en}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Heart className="w-10 h-10 text-rose-300 fill-rose-200" />
+                        )}
+                        <button
+                          onClick={() => toggleWishlist(slug, product?.name_en)}
+                          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 text-rose-600 hover:bg-rose-600 hover:text-white flex items-center justify-center transition shadow-sm"
+                          title="Remove"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider text-accent font-bold">
+                          {product?.category?.name_en ?? "Thai Mango"}
+                        </span>
+                        <h4 className="font-serif text-base text-charcoal font-semibold mt-1 line-clamp-1">
+                          {product?.name_en ??
+                            (catalogQuery.isPending ? "Loading…" : slug)}
+                        </h4>
+                        {variant && (
+                          <span className="block text-sm font-semibold text-charcoal mb-3 mt-0.5">
+                            {formatPrice(Number(variant.price))}
+                          </span>
+                        )}
+                        <Link
+                          href={product ? `/product-detail/${slug}` : "/shop"}
+                          className="block text-center w-full py-2.5 mt-3 bg-charcoal text-white rounded-full text-xs uppercase tracking-wider font-bold hover:bg-accent transition"
+                        >
+                          {product ? "View Product" : "View in Shop"}
+                        </Link>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[9px] uppercase tracking-wider text-accent font-bold">
-                        Thai Mango
-                      </span>
-                      <h4 className="font-serif text-base text-charcoal font-semibold mt-1 mb-3 line-clamp-1">
-                        {name}
-                      </h4>
-                      <Link
-                        href="/shop"
-                        className="block text-center w-full py-2.5 bg-charcoal text-white rounded-full text-xs uppercase tracking-wider font-bold hover:bg-accent transition"
-                      >
-                        View in Shop
-                      </Link>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -949,55 +1008,56 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-              {/* Morning Snack Ideas */}
-              <div className="p-6 rounded-3xl bg-white border border-cream shadow-sm">
-                <span className="text-xs font-bold text-amber-600 uppercase tracking-widest block mb-1">
-                  ☀️ Morning Snack Ideas (3 Ways)
-                </span>
-                <h4 className="font-serif text-xl font-bold text-charcoal mb-4">
-                  Rise &amp; Snack
-                </h4>
-                <ol className="space-y-3 text-xs text-muted list-decimal list-inside">
-                  <li>
-                    <strong className="text-charcoal">Straight Up:</strong> Enjoy a
-                    handful of sun-dried strips with your morning tea.
-                  </li>
-                  <li>
-                    <strong className="text-charcoal">Pair It:</strong> Toss glazed
-                    slices into your breakfast yogurt bowl.
-                  </li>
-                  <li>
-                    <strong className="text-charcoal">On The Go:</strong> Pack a
-                    resealable pouch for your morning commute.
-                  </li>
-                </ol>
-              </div>
+            {/* Suggestions follow the shopper's saved flavor preference — an
+                unset preference gets a prompt rather than a generic list. */}
+            {flavorTips ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                <div className="p-6 rounded-3xl bg-white border border-cream shadow-sm">
+                  <span className="text-xs font-bold text-amber-600 uppercase tracking-widest block mb-1">
+                    ☀️ Morning ideas for {activeUser.skinType}
+                  </span>
+                  <h4 className="font-serif text-xl font-bold text-charcoal mb-4">
+                    Rise &amp; Snack
+                  </h4>
+                  <ol className="space-y-3 text-xs text-muted list-decimal list-inside">
+                    {flavorTips.morning.map((tip) => (
+                      <li key={tip.title}>
+                        <strong className="text-charcoal">{tip.title}:</strong>{" "}
+                        {tip.body}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
 
-              {/* Evening Snack Ideas */}
-              <div className="p-6 rounded-3xl bg-white border border-cream shadow-sm">
-                <span className="text-xs font-bold text-indigo-700 uppercase tracking-widest block mb-1">
-                  🌙 Evening Snack Ideas (3 Ways)
-                </span>
-                <h4 className="font-serif text-xl font-bold text-charcoal mb-4">
-                  Wind Down &amp; Snack
-                </h4>
-                <ol className="space-y-3 text-xs text-muted list-decimal list-inside">
-                  <li>
-                    <strong className="text-charcoal">Movie Night:</strong> Share a
-                    bowl of chili lime bites while streaming.
-                  </li>
-                  <li>
-                    <strong className="text-charcoal">Sweet Tooth:</strong> Nibble
-                    fusion chews for a naturally sweet treat.
-                  </li>
-                  <li>
-                    <strong className="text-charcoal">Relax:</strong> Pair with
-                    herbal tea for a calm evening treat.
-                  </li>
-                </ol>
+                <div className="p-6 rounded-3xl bg-white border border-cream shadow-sm">
+                  <span className="text-xs font-bold text-indigo-700 uppercase tracking-widest block mb-1">
+                    🌙 Evening ideas for {activeUser.skinType}
+                  </span>
+                  <h4 className="font-serif text-xl font-bold text-charcoal mb-4">
+                    Wind Down &amp; Snack
+                  </h4>
+                  <ol className="space-y-3 text-xs text-muted list-decimal list-inside">
+                    {flavorTips.evening.map((tip) => (
+                      <li key={tip.title}>
+                        <strong className="text-charcoal">{tip.title}:</strong>{" "}
+                        {tip.body}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="py-10 text-center bg-cream/30 rounded-3xl border border-cream">
+                <Sparkles className="w-8 h-8 text-muted mx-auto mb-3 stroke-[1.5]" />
+                <h4 className="font-serif text-xl text-charcoal mb-2">
+                  No flavor preference saved yet
+                </h4>
+                <p className="text-xs text-muted max-w-sm mx-auto">
+                  Your preference is chosen at registration. Once it&apos;s set,
+                  snack suggestions matched to it appear here.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 6. ACCOUNT SETTINGS TAB */}

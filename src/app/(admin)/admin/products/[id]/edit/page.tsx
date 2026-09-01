@@ -5,15 +5,16 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ExternalLink, Upload } from "lucide-react";
+import { ChevronLeft, ExternalLink } from "lucide-react";
 import Select from "react-select";
 import { Card, PageHeader } from "@/components/admin/ui";
+import ImageUploader from "@/components/admin/ImageUploader";
 import { adminSelectStyles, SelectOption } from "@/components/admin/selectStyles";
 import VariantsEditor, { VariantFormRow } from "@/components/admin/VariantsEditor";
 import { productSchema } from "@/schemas/product.schema";
 
 const inputCls =
-  "w-full px-4 py-2.5 rounded-xl border border-stone-200/70 bg-white text-sm focus:outline-none focus:border-peach transition placeholder:text-muted/60";
+  "w-full px-4 py-2.5 rounded-xl border border-cream bg-white text-sm focus:outline-none focus:border-accent transition placeholder:text-muted/60";
 const labelCls =
   "block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1.5";
 
@@ -75,8 +76,8 @@ const STATUS_OPTIONS: SelectOption[] = [
   { value: "ARCHIVED", label: "Archived" },
 ];
 
-const splitList = (s: string) =>
-  s
+const splitList = (s: string | null | undefined) =>
+  (s ?? "")
     .split(",")
     .map((x) => x.trim())
     .filter(Boolean);
@@ -255,7 +256,7 @@ export default function EditProductPage() {
         <p className="text-sm text-rose-600 mb-4">
           {(productQuery.error as Error).message}
         </p>
-        <Link href="/admin/products" className="text-sm text-peach underline">
+        <Link href="/admin/products" className="text-sm text-accent underline">
           Back to Products
         </Link>
       </Card>
@@ -280,7 +281,7 @@ export default function EditProductPage() {
             href={`/shop?category=${encodeURIComponent(product.category.slug)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-stone-200/70 bg-white text-sm font-semibold text-charcoal hover:border-peach transition"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border border-cream bg-white text-sm font-semibold text-charcoal hover:border-accent transition"
           >
             <ExternalLink className="w-4 h-4" />
             View in Shop
@@ -290,7 +291,7 @@ export default function EditProductPage() {
           type="button"
           disabled={updateMutation.isPending || !isDirty}
           onClick={handleSubmit(onSubmit)}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-peach to-peach-deep text-white text-sm font-semibold hover:opacity-95 transition disabled:opacity-60"
+          className="px-4 py-2.5 rounded-full bg-accent text-white text-xs font-bold uppercase tracking-widest hover:bg-burgundy transition disabled:opacity-60"
         >
           {updateMutation.isPending
             ? "Saving…"
@@ -313,7 +314,7 @@ export default function EditProductPage() {
         {/* Left: main fields */}
         <div className="lg:col-span-2 space-y-5">
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-5">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-5">
               General Information
             </h2>
             <div className="space-y-5">
@@ -332,7 +333,7 @@ export default function EditProductPage() {
               <div>
                 <label className={labelCls}>Slug</label>
                 <input
-                  className={`${inputCls} bg-stone-50 text-muted cursor-not-allowed`}
+                  className={`${inputCls} bg-ivory text-muted cursor-not-allowed`}
                   readOnly
                   {...register("slug")}
                 />
@@ -369,7 +370,7 @@ export default function EditProductPage() {
           />
 
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-5">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-5">
               Product Details
             </h2>
             <div className="space-y-5">
@@ -404,38 +405,28 @@ export default function EditProductPage() {
           </Card>
 
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-5">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-5">
               Product Images
             </h2>
-            <div>
-              <label className={labelCls}>Image Paths (comma-separated)</label>
-              <input className={inputCls} {...register("images")} />
-            </div>
-            {product.images.length > 0 && (
-              <div className="flex flex-wrap gap-3 mt-4">
-                {product.images.map((src) => (
-                  <img
-                    key={src}
-                    src={src}
-                    alt=""
-                    className="w-20 h-20 rounded-xl object-cover bg-cream border border-stone-200/70"
-                  />
-                ))}
-              </div>
-            )}
-            <p className="text-[11px] text-muted mt-3 flex items-center gap-1.5">
-              <Upload className="w-3.5 h-3.5" />
-              File upload isn&apos;t wired yet — reference images already in
-              /public/images. First image is the cover. Previews reflect the last
-              save.
-            </p>
+            {/* Stored in the form as a comma-joined string so the submit
+                handler's splitList() stays unchanged. */}
+            <Controller
+              control={control}
+              name="images"
+              render={({ field }) => (
+                <ImageUploader
+                  value={splitList(field.value)}
+                  onChange={(next) => field.onChange(next.join(", "))}
+                />
+              )}
+            />
           </Card>
         </div>
 
         {/* Right: organization */}
         <div className="space-y-5">
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-5">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-5">
               Organization
             </h2>
             <div className="space-y-5">

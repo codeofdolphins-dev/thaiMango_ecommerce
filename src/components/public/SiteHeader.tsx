@@ -53,7 +53,7 @@ export default function SiteHeader({ variant }: { variant: "hero" | "solid" }) {
           className={`${
             variant === "hero"
               ? "invisible lg:visible flex items-center gap-3 p-1 hover:text-accent transition"
-              : "flex items-center gap-3 p-1 hover:text-[#E5B869] transition"
+              : "flex items-center gap-3 p-1 hover:text-gold transition"
           }`}
           aria-label="Open Menu"
           onClick={(e) => {

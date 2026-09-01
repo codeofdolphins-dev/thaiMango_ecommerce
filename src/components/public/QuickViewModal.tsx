@@ -12,6 +12,7 @@ export default function QuickViewModal() {
     if (!quickView) return;
     const parsed = parseInt(quickView.price.replace(/[^0-9]/g, ""), 10);
     addToCart({
+      slug: quickView.slug,
       name: quickView.name,
       price: parsed || 410,
       image: quickView.image,

@@ -4,6 +4,8 @@ import {
     DEFAULT_SETTINGS,
     SettingsValues,
     THAI_VAT_RATE,
+    SECRET_SETTINGS_KEYS,
+    SECRET_MASK,
 } from "@/schemas/settings.schema";
 import {
     CurrencyCode,
@@ -49,37 +51,39 @@ export function resolveDisplayCurrency(
         : DEFAULT_DISPLAY_CURRENCY;
 }
 
-/** The subset that is safe to expose to the storefront (no admin-only fields).
- *  Gateway secrets never appear here — only the publishable Stripe key, which
- *  is public by design and needed by the browser to mount the card form. */
-export function toPublicSettings(settings: SettingsValues) {
+/** Replaces stored secrets with a mask so they never leave the server —
+ *  the admin form sends the mask back to mean "keep the saved value". */
+export function maskSecrets(settings: SettingsValues): SettingsValues {
+    const masked = { ...settings };
+    for (const key of SECRET_SETTINGS_KEYS) {
+        if (masked[key]) masked[key] = SECRET_MASK;
+    }
+    return masked;
+}
+
+/** The ONE settings shape served to both portals: every admin-editable field
+ *  (secrets masked) plus derived read-only fields. The admin form binds the
+ *  raw fields; the storefront reads the derived ones — raw razorpay_enabled
+ *  is the admin's toggle, razorpay_ready is toggle AND credentials present. */
+export function toSettingsResponse(settings: SettingsValues) {
     const gateways = resolveGatewayCredentials(settings);
     return {
-        store_name: settings.store_name,
-        support_email: settings.support_email,
-        support_phone: settings.support_phone,
-        store_address: settings.store_address,
-        show_announcement: settings.show_announcement,
-        /* Base (entry) currency — admin money formatting uses it. */
+        ...maskSecrets(settings),
+        /* Derived, read-only — recomputed on save, ignored by PUT. */
         base_currency: baseCurrencyOf(settings),
-        free_shipping_above: settings.free_shipping_above,
-        standard_shipping: settings.standard_shipping,
-        priority_shipping: settings.priority_shipping,
-        gst_rate: settings.gst_rate,
-        cod_enabled: settings.cod_enabled,
-        upi_enabled: settings.upi_enabled,
-        intl_shipping: settings.intl_shipping,
-        razorpay_enabled: gateways.razorpay.enabled,
-        stripe_enabled: gateways.stripe.enabled,
-        stripe_publishable_key: gateways.stripe.publishableKey,
+        razorpay_ready: gateways.razorpay.enabled,
+        stripe_ready: gateways.stripe.enabled,
+        /* Resolved publishable key (saved value or .env fallback) — public by
+           design; the browser needs it to mount the Stripe card form. */
+        stripe_pk: gateways.stripe.publishableKey,
     };
 }
 
-/** Shape served by GET /api/settings — public fields plus the visitor-resolved
- *  display currency and the base → display exchange rate. */
-export type PublicSettings = ReturnType<typeof toPublicSettings> & {
+/** Shape served by GET /api/settings — the unified settings plus the
+ *  visitor-resolved currency and the base → display exchange rate. */
+export type SettingsResponse = ReturnType<typeof toSettingsResponse> & {
     country: string | null;
-    display_currency: CurrencyCode;
+    visitor_currency: CurrencyCode;
     display_rate: number;
 };
 

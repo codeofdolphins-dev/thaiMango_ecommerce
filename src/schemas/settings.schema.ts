@@ -6,6 +6,14 @@ export const THAI_VAT_RATE = 7;
 /** "" = not chosen yet. */
 const currencyOrEmpty = z.enum(["", "INR", "USD", "THB"]);
 
+/** Social profile link — "" hides the icon on the storefront.
+    Defaulted so rows saved before these fields existed still parse. */
+const socialUrl = z
+    .string()
+    .trim()
+    .refine((v) => v === "" || URL.canParse(v), "Enter a full URL (https://…)")
+    .default("");
+
 export const settingsSchema = z.object({
     store_name: z.string().trim().min(1, "Store name is required"),
     support_email: z.email("Enter a valid email"),
@@ -29,6 +37,19 @@ export const settingsSchema = z.object({
     notif_weekly: z.boolean(),
     maintenance_mode: z.boolean(),
     show_announcement: z.boolean(),
+    /* ── Social links ── shown in the storefront footer/menu when set. */
+    social_instagram: socialUrl,
+    social_facebook: socialUrl,
+    social_twitter: socialUrl,
+    social_youtube: socialUrl,
+    social_whatsapp: socialUrl,
+    /* ── "We Accept" card badges ── footer display only. The UPI and COD
+       badges follow upi_enabled / cod_enabled so the footer never advertises
+       a method checkout rejects. Defaults match the pre-settings footer. */
+    card_visa: z.boolean().default(true),
+    card_mastercard: z.boolean().default(true),
+    card_rupay: z.boolean().default(true),
+    card_amex: z.boolean().default(false),
     /* ── Payment gateways ──
        Keys are managed here; blank falls back to the matching .env value.
        Secrets are never returned to the browser — see SECRET_SETTINGS_KEYS. */
@@ -88,6 +109,15 @@ export const DEFAULT_SETTINGS: SettingsValues = {
     notif_weekly: false,
     maintenance_mode: false,
     show_announcement: true,
+    social_instagram: "",
+    social_facebook: "",
+    social_twitter: "",
+    social_youtube: "",
+    social_whatsapp: "",
+    card_visa: true,
+    card_mastercard: true,
+    card_rupay: true,
+    card_amex: false,
     razorpay_enabled: true,
     razorpay_key_id: "",
     razorpay_key_secret: "",

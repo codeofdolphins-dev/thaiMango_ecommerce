@@ -139,6 +139,22 @@ model Order {
   created_at DateTime      @default(now())
   updated_at DateTime      @updatedAt
 
+  /* Delivery details are copied onto the order rather than referenced, so
+     editing or deleting an address never rewrites what was already shipped. */
+  ship_name     String
+  ship_phone    String
+  ship_line1    String
+  ship_city     String
+  ship_state    String
+  ship_pincode  String
+  ship_country  String @default("India")
+
+  /* What the shopper was actually charged, alongside the store's base
+     currency total in `total` (see lib/currency + helper/orderAmount). */
+  charge_currency String  @default("THB")
+  charge_total    Decimal @default(0) @db.Decimal(10, 2)
+  payment_ref     String?
+
   user  User        @relation(fields: [user_id], references: [id])
   items OrderItem[]
 
@@ -151,6 +167,9 @@ model OrderItem {
   order_id   String
   product_id String?
   name       String
+  /* The variant bought ("100g Pouch"), copied so a later catalog edit cannot
+     change what a past order says was picked and packed. */
+  variant_label String?
   price      Decimal @db.Decimal(10, 2)
   quantity   Int
 
@@ -213,4 +232,45 @@ model StoreSettings {
   id         Int      @id @default(1)
   data       Json
   updated_at DateTime @updatedAt
+}
+
+/**
+ * ───────── FAQs ─────────
+ */
+
+model Faq {
+  id         Int      @id @default(autoincrement())
+  /* One of the fixed category ids in src/schemas/faq.schema.ts */
+  category   String
+  question   String
+  answer     String
+  position   Int      @default(0)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([category])
+}
+
+/**
+ * ───────── Contact Inquiries ─────────
+ */
+
+enum InquiryStatus {
+  NEW
+  RESOLVED
+}
+
+model ContactInquiry {
+  id         Int           @id @default(autoincrement())
+  first_name String
+  last_name  String
+  email      String
+  phone      String        @default("")
+  topic      String
+  message    String
+  status     InquiryStatus @default(NEW)
+  created_at DateTime      @default(now())
+
+  @@index([status])
 }

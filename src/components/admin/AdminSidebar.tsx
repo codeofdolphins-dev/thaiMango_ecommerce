@@ -6,6 +6,8 @@ import {
   ExternalLink,
   FileText,
   FolderTree,
+  HelpCircle,
+  Inbox,
   LayoutGrid,
   LogOut,
   MessageSquare,
@@ -27,8 +29,10 @@ const NAV: {
   { href: "/admin/categories", label: "Categories", Icon: FolderTree },
   { href: "/admin/orders", label: "Orders", Icon: ShoppingBag },
   { href: "/admin/reviews", label: "Reviews", Icon: MessageSquare },
+  { href: "/admin/inquiries", label: "Inquiries", Icon: Inbox },
   { href: "/admin/coupons", label: "Coupons", Icon: Ticket },
   { href: "/admin/site-content", label: "Site Content", Icon: FileText },
+  { href: "/admin/faqs", label: "FAQs", Icon: HelpCircle },
   { href: "/admin/customers", label: "Customers", Icon: Users },
   { href: "/admin/settings", label: "Settings", Icon: Settings },
 ];
@@ -55,13 +59,13 @@ export default function AdminSidebar({
       />
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-50 h-screen shrink-0 bg-white border-r border-stone-200/80 flex flex-col transition-all duration-300 lg:translate-x-0 ${
+        className={`fixed lg:sticky top-0 left-0 z-50 h-screen shrink-0 bg-white border-r border-cream flex flex-col transition-all duration-300 lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "w-[248px] lg:w-[84px]" : "w-[248px]"}`}
       >
         {/* Brand */}
         <div
-          className={`h-[72px] flex items-center gap-3 border-b border-stone-200/70 shrink-0 ${
+          className={`h-[72px] flex items-center gap-3 border-b border-cream shrink-0 ${
             collapsed ? "lg:justify-center px-4" : "px-5"
           }`}
         >
@@ -75,16 +79,16 @@ export default function AdminSidebar({
               className="w-10 h-10 object-contain rounded-full shadow-sm shrink-0"
             />
             <div className={`leading-tight ${collapsed ? "lg:hidden" : ""}`}>
-              <span className="block text-sm font-bold tracking-wide text-ink uppercase">
-                Thai Mango
-              </span>
-              <span className="block text-[10px] tracking-[0.2em] uppercase text-peach font-semibold">
+              <span className="block text-[10px] tracking-[0.2em] uppercase text-accent font-bold">
                 Command Center
+              </span>
+              <span className="block font-serif text-lg text-charcoal">
+                Thai Mango
               </span>
             </div>
           </Link>
           <button
-            className="lg:hidden ml-auto p-1.5 text-slate-400 hover:text-ink"
+            className="lg:hidden ml-auto p-1.5 text-muted/70 hover:text-charcoal"
             aria-label="Close menu"
             onClick={onClose}
           >
@@ -95,7 +99,7 @@ export default function AdminSidebar({
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto no-scrollbar px-3 py-5 space-y-1.5">
           <p
-            className={`px-3 mb-2 text-[10px] tracking-[0.2em] uppercase text-slate-400 font-semibold ${
+            className={`px-3 mb-2 text-[10px] tracking-[0.2em] uppercase text-muted/70 font-semibold ${
               collapsed ? "lg:hidden" : ""
             }`}
           >
@@ -110,17 +114,17 @@ export default function AdminSidebar({
                 href={href}
                 onClick={onClose}
                 title={collapsed ? label : undefined}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold uppercase tracking-wide transition group ${
+                className={`flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-xs font-semibold tracking-wide transition ${
                   collapsed ? "lg:justify-center" : ""
                 } ${
                   active
-                    ? "bg-gradient-to-r from-peach to-peach-deep text-white shadow-md shadow-peach/30"
-                    : "text-slate-600 hover:bg-peach-soft"
+                    ? "bg-accent text-white"
+                    : "text-charcoal hover:bg-cream/40"
                 }`}
               >
                 <Icon
-                  className={`w-[18px] h-[18px] shrink-0 ${
-                    active ? "text-white" : "text-peach"
+                  className={`w-4 h-4 shrink-0 ${
+                    active ? "text-white" : "text-muted"
                   }`}
                 />
                 <span className={collapsed ? "lg:hidden" : ""}>{label}</span>
@@ -130,16 +134,16 @@ export default function AdminSidebar({
         </nav>
 
         {/* Footer */}
-        <div className="p-3 border-t border-stone-200/70 shrink-0 space-y-1">
+        <div className="p-3 border-t border-cream shrink-0 space-y-1">
           <Link
             href="/"
             target="_blank"
             title={collapsed ? "Public Site" : undefined}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold uppercase tracking-wide text-slate-600 hover:bg-peach-soft transition ${
+            className={`flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-xs font-semibold tracking-wide text-charcoal hover:bg-cream/40 transition ${
               collapsed ? "lg:justify-center" : ""
             }`}
           >
-            <ExternalLink className="w-[18px] h-[18px] text-peach shrink-0" />
+            <ExternalLink className="w-4 h-4 text-muted shrink-0" />
             <span className={collapsed ? "lg:hidden" : ""}>Public Site</span>
           </Link>
           <button
@@ -151,11 +155,11 @@ export default function AdminSidebar({
               } catch {}
               window.location.href = "/login";
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold uppercase tracking-wide text-rose-500 hover:bg-rose-50 transition ${
+            className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-xs font-semibold tracking-wide text-accent hover:bg-cream/40 transition ${
               collapsed ? "lg:justify-center" : ""
             }`}
           >
-            <LogOut className="w-[18px] h-[18px] shrink-0" />
+            <LogOut className="w-4 h-4 shrink-0" />
             <span className={collapsed ? "lg:hidden" : ""}>Sign Out</span>
           </button>
         </div>

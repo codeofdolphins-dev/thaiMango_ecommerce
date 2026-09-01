@@ -28,7 +28,7 @@ const OPTIONS: DialOption[] = COUNTRY_CODES.map((c) => ({
 
 const publicDialStyles = publicCompactSelectStyles<DialOption>();
 
-/* Admin portal: stone borders, peach focus — matches adminSelectStyles. */
+/* Admin portal: cream borders, accent focus — matches adminSelectStyles. */
 const adminPhoneSelectStyles: StylesConfig<DialOption, false> = {
   ...publicDialStyles,
   control: (base, state) => ({
@@ -36,10 +36,10 @@ const adminPhoneSelectStyles: StylesConfig<DialOption, false> = {
     minHeight: "42px",
     borderRadius: "0.75rem",
     backgroundColor: "#fff",
-    borderColor: state.isFocused ? "#F29F86" : "rgba(231, 229, 228, 0.7)",
+    borderColor: state.isFocused ? "#7A1233" : "#EFE9DF",
     boxShadow: "none",
     fontSize: "0.875rem",
-    "&:hover": { borderColor: "#F29F86" },
+    "&:hover": { borderColor: "#7A1233" },
   }),
 };
 
@@ -76,12 +76,12 @@ export default function PhoneField({
 
   const defaultInputCls =
     variant === "admin"
-      ? "w-full px-4 py-2.5 rounded-xl border border-stone-200/70 bg-white text-sm focus:outline-none focus:border-peach transition placeholder:text-muted/60"
+      ? "w-full px-4 py-2.5 rounded-xl border border-cream bg-white text-sm focus:outline-none focus:border-accent transition placeholder:text-muted/60"
       : "w-full px-4 py-3.5 rounded-xl border border-cream bg-ivory/40 text-sm focus:outline-none focus:border-accent focus:bg-white transition";
 
   return (
     <div className="flex gap-2">
-      <div className="w-[120px] shrink-0">
+      <div className="w-30 shrink-0">
         <Select<DialOption>
           instanceId={id ? `${id}-dial` : "phone-dial"}
           options={OPTIONS}

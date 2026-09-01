@@ -9,7 +9,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     marquee_welcome: "Welcome to Thai Mango — Enjoy 15% off your first order",
     shop_now: "Shop Now",
     menu: "Menu",
-    hero_title_1: "THAI",
+    hero_title_1: "BANGKOK",
     hero_title_2: "MANGO",
     hero_desc:
       "Where orchard tradition meets modern craft. Discover naturally sun-dried mango, hand-selected in Thailand for timeless tropical sweetness.",
@@ -49,7 +49,7 @@ export const translations: Record<Lang, Record<string, string>> = {
       "ยินดีต้อนรับสู่ Thai Mango — รับส่วนลด 15% สำหรับการสั่งซื้อครั้งแรก",
     shop_now: "ช้อปเลย",
     menu: "เมนู",
-    hero_title_1: "THAI",
+    hero_title_1: "BANGKOK",
     hero_title_2: "MANGO",
     hero_desc:
       "ที่ซึ่งภูมิปัญญาแห่งสวนมะม่วงผสานงานฝีมือสมัยใหม่ เพื่อความหวานเหนือกาลเวลา",

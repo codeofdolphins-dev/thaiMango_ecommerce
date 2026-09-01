@@ -8,13 +8,13 @@ import {
   currencySymbol,
   formatMoney,
 } from "@/lib/currency";
-import type { PublicSettings } from "@/lib/storeSettings";
+import type { SettingsResponse } from "@/lib/storeSettings";
 
 /** Store-currency-aware money formatting for admin screens. */
 export function useMoney() {
   const settingsQuery = useQuery({
     queryKey: ["public-settings"],
-    queryFn: async (): Promise<PublicSettings | null> => {
+    queryFn: async (): Promise<SettingsResponse | null> => {
       const res = await fetch("/api/settings");
       if (!res.ok) return null;
       const body = await res.json();

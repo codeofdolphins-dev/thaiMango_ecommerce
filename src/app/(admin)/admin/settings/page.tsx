@@ -31,9 +31,9 @@ interface TestResult {
 }
 
 const inputCls =
-  "w-full px-4 py-2.5 rounded-xl border border-stone-200/70 bg-white text-sm focus:outline-none focus:border-peach transition placeholder:text-muted/60";
+  "w-full px-4 py-2.5 rounded-xl border border-cream bg-white text-sm focus:outline-none focus:border-accent transition placeholder:text-muted/60";
 const lockedInputCls =
-  "w-full px-4 py-2.5 rounded-xl border border-stone-200/70 bg-stone-100 text-sm text-muted cursor-not-allowed focus:outline-none";
+  "w-full px-4 py-2.5 rounded-xl border border-cream bg-cream text-sm text-muted cursor-not-allowed focus:outline-none";
 const labelCls =
   "block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1.5";
 
@@ -71,7 +71,7 @@ function Toggle({
       )}
       <span
         className={`relative w-11 h-6 rounded-full transition shrink-0 ${
-          on ? "bg-peach" : "bg-stone-300"
+          on ? "bg-accent" : "bg-cream"
         }`}
       >
         <span
@@ -91,7 +91,7 @@ export default function SettingsPage() {
   const settingsQuery = useQuery({
     queryKey: ["admin-settings"],
     queryFn: async (): Promise<SettingsValues> => {
-      const res = await fetch("/api/admin/settings");
+      const res = await fetch("/api/settings");
       const body = await res.json();
       if (!res.ok) throw new Error(body.message || "Failed to load settings");
       return body.data;
@@ -114,7 +114,7 @@ export default function SettingsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (values: SettingsValues) => {
-      const res = await fetch("/api/admin/settings", {
+      const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
@@ -256,7 +256,7 @@ export default function SettingsPage() {
           type="button"
           onClick={() => saveGatewayKeys(gateway)}
           disabled={saving || busy}
-          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-peach to-peach-deep text-white text-xs font-semibold hover:opacity-95 transition disabled:opacity-60"
+          className="px-3.5 py-2 rounded-full bg-accent text-white text-xs font-semibold hover:bg-burgundy transition disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save Keys"}
         </button>
@@ -264,7 +264,7 @@ export default function SettingsPage() {
           type="button"
           onClick={() => testGateway(gateway)}
           disabled={busy || saving}
-          className="px-3.5 py-2 rounded-xl border border-stone-200/70 bg-white text-xs font-semibold text-charcoal hover:border-peach transition disabled:opacity-60"
+          className="px-3.5 py-2 rounded-full border border-cream bg-white text-xs font-semibold text-charcoal hover:border-accent transition disabled:opacity-60"
         >
           {busy ? "Testing…" : "Test Connection"}
         </button>
@@ -300,13 +300,29 @@ export default function SettingsPage() {
     />
   );
 
+  const socialField = (
+    name: keyof SettingsFormInput,
+    label: string,
+    placeholder: string
+  ) => (
+    <div>
+      <label className={labelCls}>{label}</label>
+      <input className={inputCls} placeholder={placeholder} {...register(name)} />
+      {errors[name] && (
+        <p className="text-[11px] text-rose-600 mt-1">
+          {errors[name]?.message as string}
+        </p>
+      )}
+    </div>
+  );
+
   return (
     <>
       <PageHeader title="Settings" subtitle="Store configuration and preferences.">
         <button
           onClick={onSubmit}
           disabled={saveMutation.isPending || settingsQuery.isPending}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-peach to-peach-deep text-white text-sm font-semibold hover:opacity-95 transition disabled:opacity-60"
+          className="px-4 py-2.5 rounded-full bg-accent text-white text-xs font-bold uppercase tracking-widest hover:bg-burgundy transition disabled:opacity-60"
         >
           {saveMutation.isPending ? "Saving…" : saved ? "Saved ✓" : "Save Changes"}
         </button>
@@ -321,7 +337,7 @@ export default function SettingsPage() {
       <form onSubmit={onSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-5">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-5">
               Store Details
             </h2>
             <div className="space-y-5">
@@ -381,7 +397,23 @@ export default function SettingsPage() {
           </Card>
 
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-5">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-1">
+              Social Links
+            </h2>
+            <p className="text-[11px] text-muted mb-5">
+              Shown on the storefront. Leave a link empty to hide its icon.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {socialField("social_instagram", "Instagram", "https://instagram.com/thaimango")}
+              {socialField("social_facebook", "Facebook", "https://facebook.com/thaimango")}
+              {socialField("social_twitter", "X (Twitter)", "https://x.com/thaimango")}
+              {socialField("social_youtube", "YouTube", "https://youtube.com/@thaimango")}
+              {socialField("social_whatsapp", "WhatsApp", "https://wa.me/919876543210")}
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-5">
               Shipping &amp; Payments
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -482,7 +514,7 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
-            <div className="mt-5 pt-4 border-t border-stone-200/70 divide-y divide-stone-100">
+            <div className="mt-5 pt-4 border-t border-cream divide-y divide-cream">
               {toggle("cod_enabled", "Cash on Delivery", "Allow COD at checkout for serviceable pincodes.")}
               {toggle("upi_enabled", "UPI Payments", "Accept GPay, PhonePe and Paytm.")}
               {toggle("intl_shipping", "International Shipping", "Ship orders outside India.")}
@@ -490,7 +522,7 @@ export default function SettingsPage() {
           </Card>
 
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-1">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-1">
               Payment Gateways
             </h2>
             <p className="text-[11px] text-muted mb-5">
@@ -501,10 +533,10 @@ export default function SettingsPage() {
             </p>
 
             {/* Razorpay */}
-            <div className="rounded-xl border border-stone-200/70 p-4 mb-4">
+            <div className="rounded-xl border border-cream p-4 mb-4">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-ink">Razorpay</h3>
+                  <h3 className="text-sm font-bold text-charcoal">Razorpay</h3>
                   <p className="text-[11px] text-muted">
                     UPI, cards and net banking. Dashboard → Settings → API Keys.
                   </p>
@@ -544,10 +576,10 @@ export default function SettingsPage() {
             </div>
 
             {/* Stripe */}
-            <div className="rounded-xl border border-stone-200/70 p-4">
+            <div className="rounded-xl border border-cream p-4">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-ink">Stripe</h3>
+                  <h3 className="text-sm font-bold text-charcoal">Stripe</h3>
                   <p className="text-[11px] text-muted">
                     International cards. Dashboard → Developers → API keys.
                   </p>
@@ -590,10 +622,10 @@ export default function SettingsPage() {
 
         <div className="space-y-5">
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-2">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-2">
               Notifications
             </h2>
-            <div className="divide-y divide-stone-100">
+            <div className="divide-y divide-cream">
               {toggle("notif_new_order", "New Order Emails", "Email me on every new order.")}
               {toggle("notif_low_stock", "Low Stock Alerts", "Warn when stock drops below 50.")}
               {toggle("notif_weekly", "Weekly Reports", "Sales summary every Monday.")}
@@ -601,12 +633,28 @@ export default function SettingsPage() {
           </Card>
 
           <Card className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-wide text-ink mb-2">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-2">
               Storefront
             </h2>
-            <div className="divide-y divide-stone-100">
+            <div className="divide-y divide-cream">
               {toggle("maintenance_mode", "Maintenance Mode", "Temporarily hide the storefront.")}
               {toggle("show_announcement", "Show Announcement Bar", "Display the top promo marquee.")}
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <h2 className="text-base font-bold uppercase tracking-wide text-charcoal mb-1">
+              We Accept
+            </h2>
+            <p className="text-[11px] text-muted mb-2">
+              Card badges shown in the footer. The UPI and COD badges follow
+              the payment toggles automatically.
+            </p>
+            <div className="divide-y divide-cream">
+              {toggle("card_visa", "Visa", "Show the Visa badge.")}
+              {toggle("card_mastercard", "Mastercard", "Show the Mastercard badge.")}
+              {toggle("card_rupay", "RuPay", "Show the RuPay badge.")}
+              {toggle("card_amex", "American Express", "Show the Amex badge.")}
             </div>
           </Card>
         </div>

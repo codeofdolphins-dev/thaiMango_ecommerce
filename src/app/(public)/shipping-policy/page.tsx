@@ -37,7 +37,7 @@ export default async function ShippingPolicyPage() {
 
           <section>
             <h2 className="font-serif text-2xl text-charcoal mb-3">4. Damaged or Missing Shipments</h2>
-            <p>If your package arrives damaged, please photograph the package and notify us within 48 hours at <a href="mailto:care@thaimango.com" className="text-accent underline">care@thaimango.com</a> for an immediate replacement dispatch.</p>
+            <p>If your package arrives damaged, please photograph the package and notify us within 48 hours at <a href={`mailto:${settings.support_email}`} className="text-accent underline">{settings.support_email}</a> for an immediate replacement dispatch.</p>
           </section>
         </div>
       </div>

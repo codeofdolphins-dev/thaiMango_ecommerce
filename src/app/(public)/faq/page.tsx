@@ -1,205 +1,414 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Sparkles, Apple, Truck, ChevronDown } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Sparkles,
+  Apple,
+  Truck,
+  ChevronDown,
+  Search,
+  X,
+  ArrowRight,
+  Mail,
+  Phone,
+} from "lucide-react";
+import { useStore } from "@/components/public/store";
+import { DEFAULT_SETTINGS } from "@/schemas/settings.schema";
+import {
+  FAQ_CATEGORIES,
+  FAQ_DEFAULTS,
+  FaqCategoryId,
+} from "@/schemas/faq.schema";
 
 interface FaqItem {
-  id: string;
+  id: number;
   question: string;
-  answer: React.ReactNode;
+  answer: string;
 }
 
-const ingredientsItems: FaqItem[] = [
-  {
-    id: "ing-0",
-    question: "Do Thai Mango snacks contain any allergens?",
-    answer:
-      "All Thai Mango products are processed in a facility that also handles tree nuts and sulfites, so trace cross-contact is possible. Some lines use a small amount of sulfites as a preservative to maintain color and freshness — always check the pack label for the specific batch's allergen statement before serving to anyone with a known sensitivity.",
-  },
-  {
-    id: "ing-1",
-    question: "How spicy are the Chili Lime Bites?",
-    answer:
-      "Our Chili Lime Bites carry a mild-to-medium heat — a bright, tangy kick from Thai chili and lime rather than an overwhelming burn. If you prefer no spice at all, we recommend our Classic Sun-Dried Strips or Honey Glazed Slices instead.",
-  },
-  {
-    id: "ing-2",
-    question: "Do your snacks contain added sugar?",
-    answer:
-      "Our Classic Sun-Dried Strips have no added sugar — just the natural sweetness of sun-ripened mango. Honey Glazed Slices are lightly finished with real honey for extra sweetness. Check each product page for the full nutritional breakdown.",
-  },
-];
+interface FaqRow extends FaqItem {
+  category: string;
+  position: number;
+  is_active: boolean;
+}
 
-const snacksItems: FaqItem[] = [
-  {
-    id: "snacks-0",
-    question: "What makes Thai Mango Beetroot Fusion Chews unique?",
-    answer:
-      "We select only tree-ripened Thai mangoes and infuse them with natural beetroot juice before gently dehydrating them at low temperatures. This preserves the soft, chewy texture, vibrant ruby hue, and vital phytonutrients without adding artificial colors or chemical preservatives.",
-  },
-  {
-    id: "snacks-1",
-    question: "What is the shelf life of the fruit pouches?",
-    answer:
-      "Unopened pouches maintain peak freshness for roughly 12 months when stored in a cool, dry place away from direct sunlight. Once opened, reseal the pouch and consume within 7 days.",
-  },
-  {
-    id: "snacks-2",
-    question: "Is Thai Mango suitable for children?",
-    answer: (
-      <>
-        Yes! It is crafted for all ages (เหมาะสำหรับทุกวัย) as a wholesome lunchbox treat or guilt-free snack. We recommend the milder Classic Cuts and Glazed &amp; Sweet lines for younger kids, and saving Spiced &amp; Zesty for older snackers.
-      </>
-    ),
-  },
-  {
-    id: "snacks-3",
-    question: "Do you offer bulk or wholesale ordering?",
-    answer: (
-      <>
-        Yes. We supply cafes, gift retailers, and corporate clients with bulk cases across all five collections — Classic Cuts, Spiced &amp; Zesty, Glazed &amp; Sweet, Fusion Blends, and Gift Sets. Reach out through our Contact page and select &quot;Bulk &amp; Wholesale Orders&quot; for pricing.
-      </>
-    ),
-  },
-];
+const CATEGORY_ICONS: Record<
+  FaqCategoryId,
+  React.ComponentType<{ className?: string }>
+> = {
+  ingredients: Sparkles,
+  snacks: Apple,
+  shipping: Truck,
+};
 
-const shippingItems: FaqItem[] = [
-  {
-    id: "ship-0",
-    question: "How long does shipping take?",
-    answer:
-      "Orders are dispatched within 24 hours. Metro deliveries typically arrive in 2–3 business days, while non-metro locations take 4–5 business days. You will receive an SMS and email with live tracking details.",
-  },
-  {
-    id: "ship-1",
-    question: "Do you accept Cash on Delivery (COD)?",
-    answer: "Yes, Cash on Delivery is available across most serviceable pincodes across India.",
-  },
-];
+/* Pre-fetch fallback — the seeded launch set, with synthetic ids that can
+   never collide with real (positive) DB ids. */
+const FALLBACK_ROWS: FaqRow[] = FAQ_DEFAULTS.map((f, i) => ({
+  id: -(i + 1),
+  category: f.category,
+  question: f.question,
+  answer: f.answer,
+  position: f.position,
+  is_active: true,
+}));
+
 
 function FaqAccordionItem({
   item,
+  index,
   open,
   onToggle,
 }: {
   item: FaqItem;
+  index: number;
   open: boolean;
   onToggle: () => void;
 }) {
   return (
-    <div className={`accordion-item p-6 bg-white rounded-2xl border border-cream cursor-pointer ${open ? "active" : ""}`}>
+    <div
+      className={`accordion-item group bg-white rounded-2xl border transition-all duration-300 ${
+        open
+          ? "active border-accent/25 shadow-xl shadow-accent/5"
+          : "border-cream hover:border-accent/20 hover:shadow-md hover:shadow-charcoal/5"
+      }`}
+    >
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full justify-between items-center text-sm md:text-base font-semibold text-charcoal text-left"
+        aria-expanded={open}
+        className="flex w-full items-center gap-4 p-5 md:p-6 text-left cursor-pointer"
       >
-        <span>{item.question}</span>
-        <ChevronDown className="accordion-chevron w-5 h-5 text-accent transition-transform" />
+        <span className="hidden md:block font-serif text-xl text-accent/40 w-8 shrink-0 select-none">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        <span className="flex-1 text-sm md:text-base font-semibold text-charcoal">
+          {item.question}
+        </span>
+        <span
+          className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 transition ${
+            open
+              ? "border-accent bg-accent text-white"
+              : "border-cream text-accent group-hover:border-accent/40"
+          }`}
+        >
+          <ChevronDown className="accordion-chevron w-4 h-4" />
+        </span>
       </button>
       <div className="accordion-panel">
-        <p className="text-xs md:text-sm text-muted leading-relaxed mt-4">{item.answer}</p>
+        <div className="px-5 md:px-6 pb-5 md:pb-6 md:pl-[4.5rem]">
+          <span className="block w-10 h-px bg-accent/30 mb-3" />
+          <p className="text-xs md:text-sm text-muted leading-relaxed">
+            {item.answer}
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
 export default function FaqPage() {
-  const [openItems, setOpenItems] = useState<Set<string>>(() => new Set(["ing-0"]));
+  const { settings } = useStore();
+  /* null = untouched → the very first answer renders open by default. */
+  const [openItems, setOpenItems] = useState<Set<number> | null>(null);
+  const [query, setQuery] = useState("");
 
-  const toggleItem = (id: string) => {
-    setOpenItems((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
+  const supportEmail = settings?.support_email || DEFAULT_SETTINGS.support_email;
+  const supportPhone = settings?.support_phone || DEFAULT_SETTINGS.support_phone;
+
+  /* Admin-managed FAQs; the seeded launch set fills in until the API answers. */
+  const faqsQuery = useQuery({
+    queryKey: ["public-faqs"],
+    queryFn: async (): Promise<FaqRow[]> => {
+      const res = await fetch("/api/faqs");
+      if (!res.ok) throw new Error("Failed to load FAQs");
+      const body = await res.json();
+      return body.data as FaqRow[];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const rows = faqsQuery.data ?? FALLBACK_ROWS;
+
+  const allCategories = useMemo(
+    () =>
+      FAQ_CATEGORIES.map((meta) => ({
+        ...meta,
+        Icon: CATEGORY_ICONS[meta.id],
+        items: rows
+          .filter((r) => r.category === meta.id && r.is_active)
+          .sort((a, b) => a.position - b.position || a.id - b.id),
+      })).filter((cat) => cat.items.length > 0),
+    [rows]
+  );
+  const totalAnswers = allCategories.reduce((n, c) => n + c.items.length, 0);
+
+  const firstId = allCategories[0]?.items[0]?.id;
+  const effectiveOpen =
+    openItems ?? new Set(firstId !== undefined ? [firstId] : []);
+
+  const toggleItem = (id: number) => {
+    const next = new Set(effectiveOpen);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setOpenItems(next);
   };
+
+  /* Live search across questions and answers — matched items render open. */
+  const q = query.trim().toLowerCase();
+  const visibleCategories = useMemo(() => {
+    if (!q) return allCategories;
+    return allCategories
+      .map((cat) => ({
+        ...cat,
+        items: cat.items.filter(
+          (item) =>
+            item.question.toLowerCase().includes(q) ||
+            item.answer.toLowerCase().includes(q)
+        ),
+      }))
+      .filter((cat) => cat.items.length > 0);
+  }, [q, allCategories]);
+  const matchCount = q
+    ? visibleCategories.reduce((n, c) => n + c.items.length, 0)
+    : 0;
 
   return (
     <main>
       {/* FAQ Hero */}
-      <section className="py-20 md:py-28 bg-[#52091E] text-white text-center">
-        <div className="max-w-3xl mx-auto px-6">
-          <span className="text-[11px] tracking-[0.3em] uppercase text-gold font-bold mb-3 block">Help Center</span>
-          <h1 className="font-serif text-4xl md:text-6xl mb-6">Frequently Asked Questions</h1>
-          <p className="text-white/80 text-sm md:text-base leading-relaxed">
-            Find clear answers about our dried mango snacks, shipping timelines, shelf life, and orders.
+      <section className="relative overflow-hidden py-24 md:py-32 bg-burgundy text-white text-center">
+        {/* Layered glows + ghost mark — decorative only */}
+        <div className="absolute inset-0 bg-gradient-to-b from-burgundy via-beetroot/80 to-burgundy" aria-hidden="true" />
+        <div className="absolute -top-28 -right-20 w-[28rem] h-[28rem] rounded-full bg-gold/10 blur-3xl" aria-hidden="true" />
+        <div className="absolute -bottom-36 -left-24 w-[26rem] h-[26rem] rounded-full bg-mango/10 blur-3xl" aria-hidden="true" />
+        <span
+          className="absolute -top-10 left-1/2 -translate-x-1/2 font-serif text-[22rem] leading-none text-white/[0.04] select-none pointer-events-none"
+          aria-hidden="true"
+        >
+          ?
+        </span>
+
+        <div className="relative max-w-3xl mx-auto px-6">
+          <span className="flex items-center justify-center gap-4 mb-5">
+            <span className="h-px w-10 bg-gold/50" aria-hidden="true" />
+            <span className="text-[11px] tracking-[0.3em] uppercase text-gold font-bold">
+              Help Center
+            </span>
+            <span className="h-px w-10 bg-gold/50" aria-hidden="true" />
+          </span>
+          <h1 className="font-serif text-4xl md:text-6xl mb-6">
+            Frequently Asked <em className="italic text-gold">Questions</em>
+          </h1>
+          <p className="text-white/75 text-sm md:text-base leading-relaxed max-w-xl mx-auto mb-10">
+            Find clear answers about our dried mango snacks, shipping timelines,
+            shelf life, and orders — or search all {totalAnswers} answers below.
           </p>
+
+          {/* Search */}
+          <div className="relative max-w-xl mx-auto">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gold/80 pointer-events-none" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder='Try "shelf life", "spicy", "delivery"…'
+              aria-label="Search frequently asked questions"
+              className="w-full pl-12 pr-12 py-4 rounded-full bg-white/10 border border-white/15 backdrop-blur text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-gold/60 focus:bg-white/15 transition"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          {q && (
+            <p className="mt-4 text-xs tracking-widest uppercase text-gold/80">
+              {matchCount === 0
+                ? "No matching answers"
+                : `${matchCount} answer${matchCount === 1 ? "" : "s"} found`}
+            </p>
+          )}
         </div>
       </section>
 
-      {/* FAQ Accordions */}
+      {/* FAQ Body */}
       <section className="py-16 md:py-24 bg-ivory">
-        <div className="max-w-4xl mx-auto px-6">
+        <div className="max-w-screen-2xl mx-auto px-6 md:px-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
+            {/* Topic rail */}
+            <aside className="lg:col-span-4">
+              <div className="lg:sticky lg:top-28 space-y-8">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent mb-3 block">
+                    Browse By Topic
+                  </span>
+                  <h2 className="font-serif text-3xl md:text-4xl text-charcoal mb-6">
+                    How can we help?
+                  </h2>
+                  <div className="space-y-3">
+                    {allCategories.map((cat) => (
+                      <a
+                        key={cat.id}
+                        href={`#${cat.id}`}
+                        className="group flex items-center gap-4 p-4 rounded-2xl bg-white border border-cream hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5 transition"
+                      >
+                        <span className="w-11 h-11 rounded-full bg-ivory border border-cream flex items-center justify-center text-accent shrink-0 group-hover:bg-accent group-hover:text-white group-hover:border-accent transition">
+                          <cat.Icon className="w-5 h-5" />
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-sm font-semibold text-charcoal">
+                            {cat.label}
+                          </span>
+                          <span className="block text-[11px] text-muted mt-0.5">
+                            {cat.items.length} answer{cat.items.length === 1 ? "" : "s"}
+                          </span>
+                        </span>
+                        <ArrowRight className="w-4 h-4 text-muted/50 group-hover:text-accent group-hover:translate-x-0.5 transition" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
 
-          {/* Category: Ingredients & Allergens */}
-          <div className="mb-12">
-            <h2 className="font-serif text-2xl md:text-3xl text-charcoal mb-6 border-b border-cream pb-3 flex items-center gap-3">
-              <Sparkles className="w-6 h-6 text-accent" />
-              Ingredients &amp; Allergens
-            </h2>
+                {/* Quick support card */}
+                <div className="relative overflow-hidden p-6 rounded-3xl bg-burgundy text-white">
+                  <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-gold/15 blur-2xl" aria-hidden="true" />
+                  <span className="relative text-[10px] tracking-[0.25em] uppercase text-gold font-bold mb-2 block">
+                    Talk To Us
+                  </span>
+                  <p className="relative text-sm text-white/80 leading-relaxed mb-4">
+                    Can&apos;t find your answer? Our care team responds within 24
+                    business hours.
+                  </p>
+                  <div className="relative space-y-2.5 text-xs">
+                    <a
+                      href={`mailto:${supportEmail}`}
+                      className="flex items-center gap-2.5 text-white/90 hover:text-gold transition"
+                    >
+                      <Mail className="w-3.5 h-3.5 text-gold shrink-0" />
+                      {supportEmail}
+                    </a>
+                    <a
+                      href={`tel:${supportPhone.replace(/[^+\d]/g, "")}`}
+                      className="flex items-center gap-2.5 text-white/90 hover:text-gold transition"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-gold shrink-0" />
+                      {supportPhone}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </aside>
 
-            <div className="space-y-4">
-              {ingredientsItems.map((item) => (
-                <FaqAccordionItem
-                  key={item.id}
-                  item={item}
-                  open={openItems.has(item.id)}
-                  onToggle={() => toggleItem(item.id)}
-                />
-              ))}
+            {/* Accordions */}
+            <div className="lg:col-span-8">
+              {q && visibleCategories.length === 0 ? (
+                <div className="p-10 md:p-16 bg-white rounded-3xl border border-cream text-center">
+                  <span className="w-14 h-14 rounded-full bg-ivory border border-cream flex items-center justify-center text-accent mx-auto mb-5">
+                    <Search className="w-6 h-6" />
+                  </span>
+                  <h3 className="font-serif text-2xl text-charcoal mb-2">
+                    No answers for &ldquo;{query.trim()}&rdquo;
+                  </h3>
+                  <p className="text-sm text-muted mb-6 max-w-sm mx-auto">
+                    Try a different word, or ask us directly — we love a good
+                    mango question.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setQuery("")}
+                      className="px-6 py-3 rounded-full border border-cream text-xs font-bold uppercase tracking-widest text-charcoal hover:border-accent hover:text-accent transition"
+                    >
+                      Clear Search
+                    </button>
+                    <Link
+                      href="/contact"
+                      className="px-6 py-3 rounded-full bg-charcoal text-white text-xs font-bold uppercase tracking-widest hover:bg-accent transition"
+                    >
+                      Ask Our Team
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                visibleCategories.map((cat, catIndex) => (
+                  <div
+                    key={cat.id}
+                    id={cat.id}
+                    className={`scroll-mt-28 ${catIndex === 0 ? "" : "mt-14"}`}
+                  >
+                    <div className="flex items-end justify-between gap-4 mb-2">
+                      <div>
+                        <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-accent mb-1.5 block">
+                          Topic {String(catIndex + 1).padStart(2, "0")}
+                        </span>
+                        <h2 className="font-serif text-2xl md:text-3xl text-charcoal">
+                          {cat.label}
+                        </h2>
+                      </div>
+                      <span className="hidden sm:block text-[11px] text-muted pb-1 shrink-0">
+                        {cat.items.length} answer{cat.items.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <p className="text-xs md:text-sm text-muted mb-5">{cat.blurb}</p>
+                    <div className="h-px bg-gradient-to-r from-accent/40 via-cream to-transparent mb-6" aria-hidden="true" />
+
+                    <div className="space-y-4">
+                      {cat.items.map((item, index) => (
+                        <FaqAccordionItem
+                          key={item.id}
+                          item={item}
+                          index={index}
+                          open={q ? true : effectiveOpen.has(item.id)}
+                          onToggle={() => toggleItem(item.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {/* Still have questions */}
+              <div className="relative overflow-hidden mt-14 p-10 md:p-14 bg-burgundy text-white rounded-[32px] text-center shadow-2xl border border-gold/20">
+                <div className="absolute -top-16 -left-16 w-56 h-56 rounded-full bg-gold/10 blur-3xl" aria-hidden="true" />
+                <div className="absolute -bottom-20 -right-16 w-56 h-56 rounded-full bg-mango/10 blur-3xl" aria-hidden="true" />
+                <span className="relative text-[11px] tracking-[0.3em] uppercase text-gold font-bold mb-3 block">
+                  We&apos;re Here For You
+                </span>
+                <h3 className="relative font-serif text-3xl md:text-4xl mb-3">
+                  Still have questions?
+                </h3>
+                <p className="relative text-white/70 text-xs md:text-sm mb-8 max-w-md mx-auto leading-relaxed">
+                  Our customer care team is here to help you find your perfect
+                  flavor.
+                </p>
+                <div className="relative flex flex-wrap items-center justify-center gap-3">
+                  <Link
+                    href="/contact"
+                    className="inline-block px-8 py-3.5 bg-gold text-charcoal rounded-full text-xs font-bold uppercase tracking-widest hover:bg-white transition"
+                  >
+                    Contact Customer Support
+                  </Link>
+                  <a
+                    href={`mailto:${supportEmail}`}
+                    className="inline-block px-8 py-3.5 rounded-full border border-white/25 text-white text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition"
+                  >
+                    Email Us
+                  </a>
+                </div>
+                <p className="relative mt-6 text-[11px] tracking-wide text-white/50">
+                  Prefer to talk? {supportPhone} (Mon–Sat, 9AM–7PM)
+                </p>
+              </div>
             </div>
           </div>
-
-          {/* Category: Thai Mango Snacks */}
-          <div className="mb-12">
-            <h2 className="font-serif text-2xl md:text-3xl text-charcoal mb-6 border-b border-cream pb-3 flex items-center gap-3">
-              <Apple className="w-6 h-6 text-mango" />
-              Thai Mango Snacks
-            </h2>
-
-            <div className="space-y-4">
-              {snacksItems.map((item) => (
-                <FaqAccordionItem
-                  key={item.id}
-                  item={item}
-                  open={openItems.has(item.id)}
-                  onToggle={() => toggleItem(item.id)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Category: Shipping & Orders */}
-          <div className="mb-12">
-            <h2 className="font-serif text-2xl md:text-3xl text-charcoal mb-6 border-b border-cream pb-3 flex items-center gap-3">
-              <Truck className="w-6 h-6 text-accent" />
-              Shipping &amp; Orders
-            </h2>
-
-            <div className="space-y-4">
-              {shippingItems.map((item) => (
-                <FaqAccordionItem
-                  key={item.id}
-                  item={item}
-                  open={openItems.has(item.id)}
-                  onToggle={() => toggleItem(item.id)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Still have questions card */}
-          <div className="p-8 md:p-12 bg-charcoal text-white rounded-[32px] text-center shadow-xl">
-            <h3 className="font-serif text-2xl md:text-3xl mb-3">Still have questions?</h3>
-            <p className="text-white/70 text-xs md:text-sm mb-6 max-w-md mx-auto">Our customer care team is here to help you find your perfect flavor.</p>
-            <Link href="/contact" className="inline-block px-8 py-3.5 bg-accent text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-gold hover:text-charcoal transition">Contact Customer Support</Link>
-          </div>
-
         </div>
       </section>
 

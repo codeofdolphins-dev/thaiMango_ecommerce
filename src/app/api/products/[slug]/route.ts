@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prismaClient";
 import { NextResponse } from "next/server";
 import { ApiResponse, ApiError } from "@/helper/apiResponse";
 
+const RELATED_LIMIT = 8;
+
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
     try {
         const { slug } = await params;
@@ -30,6 +32,38 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
             return NextResponse.json(apiError, { status: apiError.statusCode });
         }
 
+        /* Candidates share the category, a tag, or a highlight — never the product itself. */
+        const relatedCandidates = await prisma.product.findMany({
+            where: {
+                status: "ACTIVE",
+                id: { not: product.id },
+                OR: [
+                    { category_id: product.category_id },
+                    { tags: { hasSome: product.tags } },
+                    { highlights: { hasSome: product.highlights } },
+                ],
+            },
+            include: {
+                category: { select: { slug: true, name_en: true, name_th: true } },
+                productVariant: { orderBy: { position: "asc" } },
+            },
+            take: RELATED_LIMIT * 3,
+        });
+
+        /* Rank: same category first, then by how many tags/highlights overlap. */
+        const overlap = (a: string[], b: string[]) => a.filter((v) => b.includes(v)).length;
+        const relatedProducts = relatedCandidates
+            .map((candidate) => ({
+                candidate,
+                score:
+                    (candidate.category_id === product.category_id ? 100 : 0) +
+                    overlap(candidate.tags, product.tags) * 2 +
+                    overlap(candidate.highlights, product.highlights),
+            }))
+            .sort((a, b) => b.score - a.score)
+            .slice(0, RELATED_LIMIT)
+            .map((entry) => entry.candidate);
+
         const ratingCount = product.reviews.length;
         const ratingAverage =
             ratingCount === 0
@@ -38,7 +72,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
 
         const apiResponse = new ApiResponse(
             200,
-            { ...product, ratingAverage, ratingCount },
+            { ...product, ratingAverage, ratingCount, relatedProducts },
             "Product fetched successfully"
         );
         return NextResponse.json(apiResponse, { status: apiResponse.statusCode });

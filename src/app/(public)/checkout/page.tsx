@@ -13,13 +13,22 @@ import {
   Banknote,
 } from "lucide-react";
 import Select from "react-select";
-import { RazorpayIcon, StripeIcon } from "@/components/public/BrandIcons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+import {
+  GooglePayIcon,
+  PaytmIcon,
+  PhonePeIcon,
+  RazorpayIcon,
+  StripeIcon,
+} from "@/components/public/BrandIcons";
 import PhoneField from "@/components/common/PhoneField";
 import {
   publicSelectStyles,
   type PublicSelectOption,
 } from "@/components/public/selectStyles";
 import { useStore } from "@/components/public/store";
+import { DEFAULT_SETTINGS } from "@/schemas/settings.schema";
 import {
   FREE_SHIPPING_THRESHOLD,
   STANDARD_SHIPPING,
@@ -28,6 +37,11 @@ import {
 import StripeCardForm, {
   type CardPayFn,
 } from "@/components/public/StripeCardForm";
+import CheckoutAddressBook, {
+  isAddressComplete,
+  type CheckoutAddress,
+  type SavedAddress,
+} from "@/components/public/CheckoutAddressBook";
 
 type ShippingMethod = "standard" | "priority";
 type PaymentMethod = "cod" | "razorpay" | "stripe";
@@ -122,11 +136,22 @@ export default function CheckoutPage() {
   } = useStore();
 
   const cartItems = useMemo(() => (mounted ? cart : []), [mounted, cart]);
+  const queryClient = useQueryClient();
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+
+  /* Signed-in shoppers pick from their saved address book; guests fill the
+     form in place, since there is no account to save it against. */
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
+  const [guestAddress, setGuestAddress] = useState<CheckoutAddress>({
+    line1: "",
+    city: "",
+    state: "",
+    pincode: "",
+  });
 
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>(
     "standard"
@@ -140,9 +165,10 @@ export default function CheckoutPage() {
   const codEnabled = settings?.cod_enabled ?? true;
   const upiEnabled = settings?.upi_enabled ?? true;
   const intlShipping = settings?.intl_shipping ?? false;
-  /* A gateway is offered only when it is enabled *and* has keys saved. */
-  const razorpayReady = settings?.razorpay_enabled ?? false;
-  const stripeReady = settings?.stripe_enabled ?? false;
+  /* A gateway is offered only when it is enabled *and* has keys saved —
+     the *_ready fields are resolved server-side. */
+  const razorpayReady = settings?.razorpay_ready ?? false;
+  const stripeReady = settings?.stripe_ready ?? false;
 
   const countryOptions = useMemo(
     () => (intlShipping ? COUNTRIES : ["India"]),
@@ -191,7 +217,9 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (mounted && user?.isLoggedIn) {
       setEmail((v) => v || user.email || "");
-      setPhone((v) => v || user.phone || "+91 98765 43210");
+      /* Never invent a number — an unset phone must stay empty so the shopper
+         fills in one the courier can actually call. */
+      setPhone((v) => v || user.phone || "");
       setFirstName((v) => v || user.firstName || "");
       setLastName((v) => v || user.lastName || "");
     }
@@ -235,24 +263,6 @@ export default function CheckoutPage() {
   );
   const gstAmount = Math.round(subtotal * vatRate);
 
-  /* On a real payment the gateway's payment id becomes the order reference;
-     COD falls back to a locally generated one. */
-  const completeCheckout = useCallback(
-    (reference?: string) => {
-      const newOrderId =
-        reference ??
-        `#TM-${new Date().getFullYear()}-${Math.floor(
-          10000 + Math.random() * 90000
-        )}`;
-      setOrderId(newOrderId);
-      clearCart();
-      setShowSuccessModal(true);
-      showToast(`Order Placed! Reference: ${newOrderId}`);
-      setIsSubmitting(false);
-    },
-    [clearCart, showToast]
-  );
-
   const cardPayRef = useRef<CardPayFn | null>(null);
   const registerCardPay = useCallback((fn: CardPayFn | null) => {
     cardPayRef.current = fn;
@@ -260,9 +270,45 @@ export default function CheckoutPage() {
 
   const customerName = `${firstName} ${lastName}`.trim();
 
+  const isSignedIn = Boolean(mounted && user?.isLoggedIn);
+
+  /* The address book already holds this list under ["my-addresses"]; querying
+     the same key here shares that cache entry instead of refetching. */
+  const savedAddressesQuery = useQuery({
+    queryKey: ["my-addresses"],
+    enabled: isSignedIn,
+    queryFn: async (): Promise<SavedAddress[]> => {
+      const res = await axios.get("/api/addresses");
+      return res.data.data;
+    },
+  });
+
+  /* Null until step 2 is answered: a picked saved address wins, otherwise a
+     fully filled form (the guest form, or a signed-in shopper's add-new panel)
+     counts immediately — no separate "save the address first" step. */
+  const shippingAddress: CheckoutAddress | null = useMemo(() => {
+    const saved = isSignedIn
+      ? savedAddressesQuery.data?.find((a) => a.id === selectedAddressId)
+      : undefined;
+    if (saved) return saved;
+    return isAddressComplete(guestAddress) ? guestAddress : null;
+  }, [isSignedIn, guestAddress, savedAddressesQuery.data, selectedAddressId]);
+
+  /* Every payment path funnels through here, so an order can never be placed
+     without a delivery address. */
+  const blockingIssue = useCallback((): string | null => {
+    if (cartItems.length === 0) return "Your bag is empty.";
+    if (!shippingAddress) return "Add a shipping address to continue.";
+    /* Persisted orders need a number the courier can call; it's prefilled
+       from the profile, so this only fires when that is empty too. */
+    if (isSignedIn && !phone.trim()) return "Add a contact number for the courier.";
+    return null;
+  }, [cartItems.length, shippingAddress, isSignedIn, phone]);
+
   const buildPayload = useCallback(
     () => ({
       items: cartItems.map((item) => ({
+        slug: item.slug,
         name: item.name,
         price: item.price,
         quantity: item.quantity,
@@ -277,6 +323,101 @@ export default function CheckoutPage() {
       },
     }),
     [cartItems, shippingMethod, couponDiscount, customerName, email, phone]
+  );
+
+  /* Persist the order, then show the confirmation. The order number the API
+     assigns is the reference the shopper sees, so it matches My Orders. */
+  const completeCheckout = useCallback(
+    async (paymentRef?: string) => {
+      if (!shippingAddress) {
+        showToast("Add a shipping address to continue.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      /* Guests keep the original flow: confirmation without a saved record,
+         since there is no account for the order to live under. */
+      if (!isSignedIn) {
+        const reference =
+          paymentRef ??
+          `#TM-${new Date().getFullYear()}-${Math.floor(
+            10000 + Math.random() * 90000
+          )}`;
+        setOrderId(reference);
+        clearCart();
+        setShowSuccessModal(true);
+        showToast(`Order Placed! Reference: ${reference}`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      try {
+        const res = await axios.post("/api/orders", {
+          ...buildPayload(),
+          payment: selectedPayment === "cod" ? "COD" : "PREPAID",
+          paymentRef,
+          shipping: {
+            name: customerName,
+            phone,
+            line1: shippingAddress.line1,
+            city: shippingAddress.city,
+            state: shippingAddress.state,
+            pincode: shippingAddress.pincode,
+            country,
+          },
+        });
+        const order = res.data.data;
+        const reference = `#TM-${String(order.order_no).padStart(5, "0")}`;
+        setOrderId(reference);
+        clearCart();
+        /* My Orders is now stale — drop it so the new order shows up. */
+        queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+        setShowSuccessModal(true);
+        showToast(`Order Placed! Reference: ${reference}`);
+
+        /* The order shipped to a typed-in address that isn't in the book yet —
+           keep it for next time. Best-effort: the order already succeeded. */
+        if (selectedAddressId === null) {
+          axios
+            .post("/api/addresses", {
+              line1: shippingAddress.line1,
+              city: shippingAddress.city,
+              state: shippingAddress.state,
+              pincode: shippingAddress.pincode,
+            })
+            .then(() =>
+              queryClient.invalidateQueries({ queryKey: ["my-addresses"] })
+            )
+            .catch(() => {});
+        }
+      } catch (error) {
+        /* The payment may already have gone through, so never imply it didn't. */
+        const message = axios.isAxiosError(error)
+          ? error.response?.data?.message
+          : null;
+        showToast(
+          paymentRef
+            ? "Payment succeeded but saving the order failed — contact support with reference " +
+              paymentRef
+            : message || "Could not place the order. Please try again."
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [
+      shippingAddress,
+      isSignedIn,
+      selectedAddressId,
+      buildPayload,
+      selectedPayment,
+      customerName,
+      phone,
+      country,
+      clearCart,
+      showToast,
+      queryClient,
+    ]
   );
 
   const payWithRazorpay = async () => {
@@ -348,8 +489,9 @@ export default function CheckoutPage() {
   };
 
   const handleExpressPay = (provider: string) => {
-    if (cartItems.length === 0) {
-      showToast("Your bag is empty.");
+    const issue = blockingIssue();
+    if (issue) {
+      showToast(issue);
       return;
     }
     showToast(`Opening Razorpay for ${provider}...`);
@@ -358,8 +500,9 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (cartItems.length === 0) {
-      showToast("Your bag is empty.");
+    const issue = blockingIssue();
+    if (issue) {
+      showToast(issue);
       return;
     }
 
@@ -423,26 +566,38 @@ export default function CheckoutPage() {
                   Express 1-Click Checkout
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Each provider carries its own brand mark and wordmark
+                      colour on a neutral tile, per their brand guidelines. */}
                   <button
                     type="button"
                     onClick={() => handleExpressPay("Google Pay")}
-                    className="py-3 px-4 rounded-2xl bg-charcoal text-white flex items-center justify-center gap-2 hover:bg-black transition shadow-sm"
+                    className="group py-3.5 px-4 rounded-2xl bg-gradient-to-b from-white to-[#f7f5f2] border border-charcoal/10 flex items-center justify-center gap-2.5 shadow-[0_1px_2px_rgba(22,22,22,0.05)] hover:shadow-[0_6px_18px_rgba(22,22,22,0.10)] hover:border-charcoal/20 hover:-translate-y-0.5 transition-all duration-300"
                   >
-                    <span className="text-xs font-semibold">GPay</span>
+                    <GooglePayIcon className="w-[18px] h-[18px] shrink-0" />
+                    <span className="text-sm font-semibold tracking-tight text-[#3c4043]">
+                      Pay
+                    </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleExpressPay("PhonePe / UPI")}
-                    className="py-3 px-4 rounded-2xl bg-[#5f259f] text-white flex items-center justify-center gap-2 hover:opacity-90 transition shadow-sm"
+                    className="group py-3.5 px-4 rounded-2xl bg-gradient-to-b from-white to-[#f7f5f2] border border-charcoal/10 flex items-center justify-center gap-2.5 shadow-[0_1px_2px_rgba(22,22,22,0.05)] hover:shadow-[0_6px_18px_rgba(95,37,159,0.18)] hover:border-[#5f259f]/30 hover:-translate-y-0.5 transition-all duration-300"
                   >
-                    <span className="text-xs font-semibold">PhonePe / UPI</span>
+                    <PhonePeIcon className="w-[18px] h-[18px] shrink-0" />
+                    <span className="text-sm font-semibold tracking-tight text-[#5f259f]">
+                      PhonePe
+                    </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleExpressPay("Paytm")}
-                    className="py-3 px-4 rounded-2xl bg-[#002e6e] text-white flex items-center justify-center gap-2 hover:opacity-90 transition shadow-sm"
+                    className="group py-3.5 px-4 rounded-2xl bg-gradient-to-b from-white to-[#f7f5f2] border border-charcoal/10 flex items-center justify-center gap-2.5 shadow-[0_1px_2px_rgba(22,22,22,0.05)] hover:shadow-[0_6px_18px_rgba(0,186,242,0.20)] hover:border-[#00baf2]/40 hover:-translate-y-0.5 transition-all duration-300"
                   >
-                    <span className="text-xs font-semibold">Paytm</span>
+                    <PaytmIcon className="w-[18px] h-[18px] shrink-0" />
+                    <span className="text-sm font-semibold tracking-tight">
+                      <span className="text-[#002970]">Pay</span>
+                      <span className="text-[#00baf2]">tm</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -547,58 +702,15 @@ export default function CheckoutPage() {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
-                        Street Address, House/Flat No. *
-                      </label>
-                      <input
-                        type="text"
-                        id="co-address"
-                        required
-                        placeholder="Flat 402, Lotus Pavilion, Palm Avenue"
-                        className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/40 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
-                          City *
-                        </label>
-                        <input
-                          type="text"
-                          id="co-city"
-                          required
-                          placeholder="Mumbai"
-                          className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/40 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
-                          State *
-                        </label>
-                        <input
-                          type="text"
-                          id="co-state"
-                          required
-                          placeholder="Maharashtra"
-                          className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/40 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
-                          PIN / Postal Code *
-                        </label>
-                        <input
-                          type="text"
-                          id="co-pincode"
-                          required
-                          placeholder="400001"
-                          maxLength={6}
-                          className="w-full px-4 py-3 rounded-xl border border-cream bg-ivory/40 text-sm focus:outline-none focus:border-accent focus:bg-white transition"
-                        />
-                      </div>
-                    </div>
+                    <CheckoutAddressBook
+                      isLoggedIn={Boolean(mounted && user?.isLoggedIn)}
+                      recipientName={`${firstName} ${lastName}`.trim()}
+                      recipientPhone={phone}
+                      selectedAddressId={selectedAddressId}
+                      onSelectAddress={setSelectedAddressId}
+                      draftAddress={guestAddress}
+                      onDraftAddressChange={setGuestAddress}
+                    />
 
                     <div>
                       <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
@@ -1008,7 +1120,10 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Headphones className="w-4 h-4 text-accent shrink-0" />
-                    <span>Customer Support: hello@thaimango.com</span>
+                    <span>
+                      Customer Support:{" "}
+                      {settings?.support_email || DEFAULT_SETTINGS.support_email}
+                    </span>
                   </div>
                 </div>
               </div>

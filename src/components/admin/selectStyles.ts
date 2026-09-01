@@ -5,30 +5,36 @@ export interface SelectOption {
     label: string;
 }
 
-/* Matches the admin input styling: rounded-xl, stone border, peach focus */
+/* Matches the admin input styling: rounded-xl, cream border, accent focus.
+   Hex literals mirror the palette-account scope in globals.css — react-select
+   builds inline styles, so it cannot read the CSS variables. */
+const ACCENT = "#7A1233";
+const CREAM = "#EFE9DF";
+const CHARCOAL = "#24211E";
+
 export const adminSelectStyles: StylesConfig<SelectOption, false> = {
     control: (base, state) => ({
         ...base,
         borderRadius: "0.75rem",
-        borderColor: state.isFocused ? "#F29F86" : "rgba(231, 229, 228, 0.7)",
+        borderColor: state.isFocused ? ACCENT : CREAM,
         boxShadow: "none",
         minHeight: "42px",
         fontSize: "0.875rem",
         backgroundColor: "#fff",
-        "&:hover": { borderColor: "#F29F86" },
+        "&:hover": { borderColor: ACCENT },
     }),
     option: (base, state) => ({
         ...base,
         fontSize: "0.875rem",
         backgroundColor: state.isSelected
-            ? "#F29F86"
+            ? ACCENT
             : state.isFocused
-                ? "#FDEDE7"
+                ? CREAM
                 : "#fff",
-        color: state.isSelected ? "#fff" : "#1c1917",
+        color: state.isSelected ? "#fff" : CHARCOAL,
         cursor: "pointer",
     }),
-    placeholder: (base) => ({ ...base, color: "rgba(120, 113, 108, 0.6)" }),
+    placeholder: (base) => ({ ...base, color: "rgba(112, 107, 101, 0.6)" }),
     menuPortal: (base) => ({ ...base, zIndex: 60 }),
 };
 
