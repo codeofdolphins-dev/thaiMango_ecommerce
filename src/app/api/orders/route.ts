@@ -6,6 +6,7 @@ import { ApiResponse, ApiError } from "@/helper/apiResponse";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/jwt";
 import { placeOrderSchema } from "@/schemas/payment.schema";
 import { computeOrderAmount, UnpricedLineError } from "@/helper/orderAmount";
+import { CouponError } from "@/helper/coupon";
 
 export async function GET() {
     try {
@@ -65,14 +66,19 @@ export async function POST(req: Request) {
         let total: number;
         let currency: string;
         let chargeTotal: number;
+        let coupon: Awaited<ReturnType<typeof computeOrderAmount>>["coupon"];
         let items: Awaited<ReturnType<typeof computeOrderAmount>>["pricedItems"];
         try {
             const computed = await computeOrderAmount(parsed.data, req.headers);
-            ({ total, currency, chargeTotal } = computed);
+            ({ total, currency, chargeTotal, coupon } = computed);
             items = computed.pricedItems;
         } catch (error) {
             if (error instanceof UnpricedLineError) {
                 const apiError = new ApiError(409, error.message);
+                return NextResponse.json(apiError, { status: apiError.statusCode });
+            }
+            if (error instanceof CouponError) {
+                const apiError = new ApiError(400, error.message);
                 return NextResponse.json(apiError, { status: apiError.statusCode });
             }
             throw error;
@@ -121,6 +127,14 @@ export async function POST(req: Request) {
                 },
             },
         });
+
+        /* Count the redemption only once an order actually exists. */
+        if (coupon) {
+            await prisma.coupon.update({
+                where: { id: coupon.id },
+                data: { used: { increment: 1 } },
+            });
+        }
 
         const apiResponse = new ApiResponse(201, order, "Order placed successfully");
         return NextResponse.json(apiResponse, { status: apiResponse.statusCode });

@@ -33,7 +33,7 @@ export default function AdminShell({
 
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Topbar */}
-        <header className="h-[72px] sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-cream flex items-center gap-3 md:gap-4 px-4 md:px-6">
+        <header className="h-18 sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-cream flex items-center gap-3 md:gap-4 px-4 md:px-6">
           <button
             className="w-9 h-9 rounded-lg flex items-center justify-center text-muted hover:bg-cream hover:text-accent transition"
             aria-label="Toggle sidebar"
@@ -64,7 +64,7 @@ export default function AdminShell({
               className="relative w-10 h-10 rounded-full border border-cream bg-white flex items-center justify-center text-muted hover:text-accent hover:border-accent transition"
               aria-label="Notifications"
             >
-              <Bell className="w-[18px] h-[18px]" />
+              <Bell className="w-4.5 h-4.5" />
               <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-accent ring-2 ring-white" />
             </button>
 

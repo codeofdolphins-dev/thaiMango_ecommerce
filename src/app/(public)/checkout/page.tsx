@@ -207,6 +207,7 @@ export default function CheckoutPage() {
     }
   }, [availableTabs, selectedPayment]);
   const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponCode, setCouponCode] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -225,17 +226,42 @@ export default function CheckoutPage() {
     }
   }, [mounted, user]);
 
-  /* Pick up a coupon applied on the cart page (shared via localStorage,
-     mirroring the static site's module-level coupon state). */
+  /* Pick up a coupon applied on the cart page (the CODE is shared via
+     localStorage) and re-validate it against the API — the displayed discount
+     always comes from the Coupon table, so it matches what the server will
+     charge. A code that no longer passes is dropped before payment starts. */
   useEffect(() => {
     if (!mounted) return;
+    let savedCode = "";
     try {
-      const saved = parseFloat(
-        localStorage.getItem("bm_coupon_discount") || "0"
-      );
-      if (saved > 0) setCouponDiscount(saved);
+      savedCode = localStorage.getItem("bm_coupon_code") || "";
     } catch {}
+    if (!savedCode) return;
+    axios
+      .post("/api/coupons/validate", { code: savedCode })
+      .then((res) => {
+        setCouponCode(res.data.data.code);
+        setCouponDiscount(res.data.data.discount_pct / 100);
+      })
+      .catch(() => {
+        setCouponCode("");
+        setCouponDiscount(0);
+        try {
+          localStorage.removeItem("bm_coupon_code");
+          localStorage.removeItem("bm_coupon_discount");
+        } catch {}
+      });
   }, [mounted]);
+
+  /* A coupon is spent with the order it discounted — don't carry it over. */
+  const clearAppliedCoupon = useCallback(() => {
+    setCouponCode("");
+    setCouponDiscount(0);
+    try {
+      localStorage.removeItem("bm_coupon_code");
+      localStorage.removeItem("bm_coupon_discount");
+    } catch {}
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = showSuccessModal ? "hidden" : "";
@@ -315,14 +341,14 @@ export default function CheckoutPage() {
         size: item.size,
       })),
       shippingMethod,
-      couponDiscount,
+      couponCode: couponCode || undefined,
       customer: {
         name: customerName || undefined,
         email: email || undefined,
         phone: phone || undefined,
       },
     }),
-    [cartItems, shippingMethod, couponDiscount, customerName, email, phone]
+    [cartItems, shippingMethod, couponCode, customerName, email, phone]
   );
 
   /* Persist the order, then show the confirmation. The order number the API
@@ -345,6 +371,7 @@ export default function CheckoutPage() {
           )}`;
         setOrderId(reference);
         clearCart();
+        clearAppliedCoupon();
         setShowSuccessModal(true);
         showToast(`Order Placed! Reference: ${reference}`);
         setIsSubmitting(false);
@@ -370,6 +397,7 @@ export default function CheckoutPage() {
         const reference = `#TM-${String(order.order_no).padStart(5, "0")}`;
         setOrderId(reference);
         clearCart();
+        clearAppliedCoupon();
         /* My Orders is now stale — drop it so the new order shows up. */
         queryClient.invalidateQueries({ queryKey: ["my-orders"] });
         setShowSuccessModal(true);
@@ -415,6 +443,7 @@ export default function CheckoutPage() {
       phone,
       country,
       clearCart,
+      clearAppliedCoupon,
       showToast,
       queryClient,
     ]
@@ -448,7 +477,7 @@ export default function CheckoutPage() {
         amount,
         currency,
         order_id: rzpOrderId,
-        name: "Thai Mango",
+        name: "Bangkok Mango",
         description: "Sun-dried mango order",
         prefill: {
           name: customerName || undefined,
@@ -571,9 +600,9 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => handleExpressPay("Google Pay")}
-                    className="group py-3.5 px-4 rounded-2xl bg-gradient-to-b from-white to-[#f7f5f2] border border-charcoal/10 flex items-center justify-center gap-2.5 shadow-[0_1px_2px_rgba(22,22,22,0.05)] hover:shadow-[0_6px_18px_rgba(22,22,22,0.10)] hover:border-charcoal/20 hover:-translate-y-0.5 transition-all duration-300"
+                    className="group py-3.5 px-4 rounded-2xl bg-linear-to-b from-white to-[#f7f5f2] border border-charcoal/10 flex items-center justify-center gap-2.5 shadow-[0_1px_2px_rgba(22,22,22,0.05)] hover:shadow-[0_6px_18px_rgba(22,22,22,0.10)] hover:border-charcoal/20 hover:-translate-y-0.5 transition-all duration-300"
                   >
-                    <GooglePayIcon className="w-[18px] h-[18px] shrink-0" />
+                    <GooglePayIcon className="w-4.5 h-4.5 shrink-0" />
                     <span className="text-sm font-semibold tracking-tight text-[#3c4043]">
                       Pay
                     </span>
@@ -581,9 +610,9 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => handleExpressPay("PhonePe / UPI")}
-                    className="group py-3.5 px-4 rounded-2xl bg-gradient-to-b from-white to-[#f7f5f2] border border-charcoal/10 flex items-center justify-center gap-2.5 shadow-[0_1px_2px_rgba(22,22,22,0.05)] hover:shadow-[0_6px_18px_rgba(95,37,159,0.18)] hover:border-[#5f259f]/30 hover:-translate-y-0.5 transition-all duration-300"
+                    className="group py-3.5 px-4 rounded-2xl bg-linear-to-b from-white to-[#f7f5f2] border border-charcoal/10 flex items-center justify-center gap-2.5 shadow-[0_1px_2px_rgba(22,22,22,0.05)] hover:shadow-[0_6px_18px_rgba(95,37,159,0.18)] hover:border-[#5f259f]/30 hover:-translate-y-0.5 transition-all duration-300"
                   >
-                    <PhonePeIcon className="w-[18px] h-[18px] shrink-0" />
+                    <PhonePeIcon className="w-4.5 h-4.5 shrink-0" />
                     <span className="text-sm font-semibold tracking-tight text-[#5f259f]">
                       PhonePe
                     </span>
@@ -591,9 +620,9 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => handleExpressPay("Paytm")}
-                    className="group py-3.5 px-4 rounded-2xl bg-gradient-to-b from-white to-[#f7f5f2] border border-charcoal/10 flex items-center justify-center gap-2.5 shadow-[0_1px_2px_rgba(22,22,22,0.05)] hover:shadow-[0_6px_18px_rgba(0,186,242,0.20)] hover:border-[#00baf2]/40 hover:-translate-y-0.5 transition-all duration-300"
+                    className="group py-3.5 px-4 rounded-2xl bg-linear-to-b from-white to-[#f7f5f2] border border-charcoal/10 flex items-center justify-center gap-2.5 shadow-[0_1px_2px_rgba(22,22,22,0.05)] hover:shadow-[0_6px_18px_rgba(0,186,242,0.20)] hover:border-[#00baf2]/40 hover:-translate-y-0.5 transition-all duration-300"
                   >
-                    <PaytmIcon className="w-[18px] h-[18px] shrink-0" />
+                    <PaytmIcon className="w-4.5 h-4.5 shrink-0" />
                     <span className="text-sm font-semibold tracking-tight">
                       <span className="text-[#002970]">Pay</span>
                       <span className="text-[#00baf2]">tm</span>
@@ -1047,7 +1076,7 @@ export default function CheckoutPage() {
                             </span>
                           </div>
                           <div className="min-w-0">
-                            <h4 className="font-semibold text-charcoal truncate max-w-[150px] sm:max-w-[180px]">
+                            <h4 className="font-semibold text-charcoal truncate max-w-37.5 sm:max-w-45">
                               {item.name}
                             </h4>
                             <span className="text-[10px] text-muted">

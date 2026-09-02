@@ -7,6 +7,7 @@ import { convertAmount, toMinorUnits } from "@/lib/currency";
 import { getExchangeRate } from "@/lib/exchangeRates";
 import { resolveCountry } from "@/lib/geo";
 import { prisma } from "@/lib/prismaClient";
+import { validateCoupon } from "@/helper/coupon";
 import type { CheckoutPayload } from "@/schemas/payment.schema";
 
 /** Thrown when a cart line cannot be priced from the catalog. */
@@ -71,9 +72,8 @@ async function repriceItems(items: CheckoutPayload["items"]) {
  * Shipping thresholds and rates are read from admin Settings — the same source
  * the checkout page displays — so the two can never disagree.
  *
- * TODO: once cart items carry product/variant ids, re-price each line from
- * the DB instead of trusting client line prices, and validate the coupon
- * code against the Coupon table.
+ * TODO: once cart items carry product/variant ids, match lines by id instead
+ * of slug/name.
  */
 export async function computeOrderAmount(
     payload: CheckoutPayload,
@@ -95,7 +95,15 @@ export async function computeOrderAmount(
         payload.shippingMethod === "priority"
             ? settings.priority_shipping
             : standardCost;
-    const discount = Math.round(subtotal * (payload.couponDiscount ?? 0));
+    /* The client sends only a code; the percentage comes from the Coupon
+       table. Throws CouponError when the code can't be honored, so a stale
+       coupon fails loudly instead of silently charging a different total. */
+    const coupon = payload.couponCode
+        ? await validateCoupon(payload.couponCode)
+        : null;
+    const discount = coupon
+        ? Math.round(subtotal * (coupon.discount_pct / 100))
+        : 0;
     const total = Math.max(0, subtotal - discount + (subtotal > 0 ? shipping : 0));
 
     /* Charge in what the visitor was shown: IN → INR, TH → THB, otherwise the
@@ -110,6 +118,9 @@ export async function computeOrderAmount(
         subtotal,
         shipping,
         discount,
+        /** The validated coupon, when one was applied — lets the order route
+         *  count the redemption. */
+        coupon,
         total,
         baseCurrency,
         currency,

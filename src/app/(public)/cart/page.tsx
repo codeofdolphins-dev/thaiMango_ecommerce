@@ -18,6 +18,7 @@ import {
   ArrowRight,
   X,
 } from "lucide-react";
+import axios from "axios";
 import { useStore } from "@/components/public/store";
 
 type PromoMessage = { text: string; type: "success" | "error" };
@@ -43,24 +44,32 @@ export default function CartPage() {
   const [promoMessage, setPromoMessage] = useState<PromoMessage | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponCode, setCouponCode] = useState("");
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
 
   const hasItems = mounted && cart.length > 0;
 
-  /* Restore a coupon applied earlier in this session (shared via
-     localStorage, mirroring the static site's module-level coupon state
-     so it also carries over to the checkout page). */
+  /* Restore a coupon applied earlier (the code is shared via localStorage so
+     it also carries over to the checkout page). Re-validated against the API
+     so a code that has since expired or hit its limit quietly drops off. */
   useEffect(() => {
     if (!mounted) return;
+    let savedCode = "";
     try {
-      const savedDiscount = parseFloat(
-        localStorage.getItem("bm_coupon_discount") || "0"
-      );
-      const savedCode = localStorage.getItem("bm_coupon_code") || "";
-      if (savedDiscount > 0) {
-        setCouponDiscount(savedDiscount);
-        setCouponCode(savedCode);
-      }
+      savedCode = localStorage.getItem("bm_coupon_code") || "";
     } catch {}
+    if (!savedCode) return;
+    axios
+      .post("/api/coupons/validate", { code: savedCode })
+      .then((res) => {
+        setCouponCode(res.data.data.code);
+        setCouponDiscount(res.data.data.discount_pct / 100);
+      })
+      .catch(() => {
+        try {
+          localStorage.removeItem("bm_coupon_code");
+          localStorage.removeItem("bm_coupon_discount");
+        } catch {}
+      });
   }, [mounted]);
 
   const remaining = Math.max(0, freeShippingThreshold - subtotal);
@@ -79,40 +88,50 @@ export default function CartPage() {
   );
   const gstAmount = Math.round(subtotal * taxRate);
 
-  const handleApplyPromo = () => {
+  /* Codes live in the Coupon table (managed from the admin panel); the API
+     enforces active/expiry/usage rules. Only the CODE is persisted — the
+     percentage is re-fetched so it can never be tampered with. */
+  const handleApplyPromo = async () => {
     const code = promoInput.trim().toUpperCase();
-    if (!code) return;
+    if (!code || isApplyingPromo) return;
 
-    if (code === "MANGO15" || code === "WELCOME15" || code === "FIRST15") {
-      setCouponDiscount(0.15);
-      setCouponCode(code);
+    setIsApplyingPromo(true);
+    try {
+      const res = await axios.post("/api/coupons/validate", { code });
+      const { code: appliedCode, discount_pct } = res.data.data;
+      setCouponDiscount(discount_pct / 100);
+      setCouponCode(appliedCode);
       try {
-        localStorage.setItem("bm_coupon_discount", "0.15");
-        localStorage.setItem("bm_coupon_code", code);
+        localStorage.setItem("bm_coupon_code", appliedCode);
       } catch {}
       setPromoMessage({
-        text: "🎉 15% Welcome Privilege discount applied!",
+        text: `🎉 ${discount_pct}% discount applied!`,
         type: "success",
       });
-      showToast("15% discount applied!");
-    } else if (code === "MANGO10" || code === "WELCOME10") {
-      setCouponDiscount(0.1);
-      setCouponCode(code);
-      try {
-        localStorage.setItem("bm_coupon_discount", "0.10");
-        localStorage.setItem("bm_coupon_code", code);
-      } catch {}
+      showToast(`${discount_pct}% discount applied!`);
+      setPromoInput("");
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.message
+        : null;
       setPromoMessage({
-        text: "🎉 10% Mango Lovers discount applied!",
-        type: "success",
-      });
-      showToast("10% discount applied!");
-    } else {
-      setPromoMessage({
-        text: "Invalid promo code. Try MANGO15 for 15% off.",
+        text: message || "Invalid promo code.",
         type: "error",
       });
+    } finally {
+      setIsApplyingPromo(false);
     }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponDiscount(0);
+    setCouponCode("");
+    setPromoMessage(null);
+    try {
+      localStorage.removeItem("bm_coupon_code");
+      localStorage.removeItem("bm_coupon_discount");
+    } catch {}
+    showToast("Coupon removed");
   };
 
   const handleClearAll = () => {
@@ -221,7 +240,7 @@ export default function CartPage() {
                 {cart.map((item, index) => (
                   <div
                     key={`${item.name}-${item.size}-${index}`}
-                    className="p-5 md:p-6 rounded-3xl bg-white border border-cream shadow-sm hover:border-[#E5B869]/40 transition group"
+                    className="p-5 md:p-6 rounded-3xl bg-white border border-cream shadow-sm hover:border-gold/40 transition group"
                   >
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                       <div className="col-span-1 md:col-span-6 flex items-center gap-4">
@@ -373,14 +392,15 @@ export default function CartPage() {
                       type="text"
                       value={promoInput}
                       onChange={(e) => setPromoInput(e.target.value)}
-                      placeholder="e.g. MANGO15"
+                      placeholder="Enter promo code"
                       className="flex-1 px-4 py-2.5 rounded-xl border border-cream uppercase text-xs font-semibold focus:outline-none focus:border-accent bg-ivory/40"
                     />
                     <button
-                      className="px-5 py-2.5 bg-charcoal text-white rounded-xl text-xs uppercase tracking-wider font-bold hover:bg-accent transition shadow-sm"
+                      className="px-5 py-2.5 bg-charcoal text-white rounded-xl text-xs uppercase tracking-wider font-bold hover:bg-accent transition shadow-sm disabled:opacity-60 disabled:cursor-wait"
                       onClick={handleApplyPromo}
+                      disabled={isApplyingPromo}
                     >
-                      Apply
+                      {isApplyingPromo ? "Checking…" : "Apply"}
                     </button>
                   </div>
                   <p
@@ -413,8 +433,16 @@ export default function CartPage() {
                       <Tag className="w-3.5 h-3.5" />
                       <span>Privilege Discount</span>
                     </span>
-                    <span className="font-bold">
-                      -{formatPrice(discountAmount)} ({couponCode || "15%"})
+                    <span className="font-bold flex items-center gap-1.5">
+                      -{formatPrice(discountAmount)} ({couponCode})
+                      <button
+                        onClick={handleRemoveCoupon}
+                        aria-label="Remove coupon"
+                        title="Remove coupon"
+                        className="p-0.5 rounded-full text-muted hover:text-rose-600 hover:bg-rose-50 transition"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -478,7 +506,6 @@ export default function CartPage() {
                         x="24"
                         y="21"
                         textAnchor="middle"
-                        fontFamily="Inter, sans-serif"
                         fontStyle="italic"
                         fontWeight="bold"
                         fontSize="12"
@@ -502,43 +529,12 @@ export default function CartPage() {
                         fillOpacity="0.85"
                       />
                     </svg>
-                    <svg
-                      viewBox="0 0 48 32"
-                      className="w-9 h-6 rounded shadow-sm"
-                      aria-label="RuPay"
-                    >
-                      <rect width="48" height="32" rx="4" fill="#FFFFFF" />
-                      <text
-                        x="24"
-                        y="19"
-                        textAnchor="middle"
-                        fontFamily="Inter, sans-serif"
-                        fontWeight="bold"
-                        fontSize="9.5"
-                        fill="#0A3577"
-                      >
-                        Ru<tspan fill="#F58220">Pay</tspan>
-                      </text>
-                      <rect x="4" y="23" width="40" height="3" rx="1.5" fill="#0AA84F" />
-                    </svg>
-                    <svg
-                      viewBox="0 0 48 32"
-                      className="w-9 h-6 rounded shadow-sm"
-                      aria-label="UPI"
-                    >
-                      <rect width="48" height="32" rx="4" fill="#FFFFFF" />
-                      <text
-                        x="24"
-                        y="20"
-                        textAnchor="middle"
-                        fontFamily="Inter, sans-serif"
-                        fontWeight="bold"
-                        fontSize="11"
-                        fill="#4B2E83"
-                      >
-                        UPI
-                      </text>
-                    </svg>
+                    <span className="w-9 h-6 rounded shadow-sm bg-white flex items-center justify-center">
+                      <img src="/payments/rupay.svg" alt="RuPay" className="w-7" />
+                    </span>
+                    <span className="w-9 h-6 rounded shadow-sm bg-white flex items-center justify-center">
+                      <img src="/payments/upi.svg" alt="UPI" className="w-7" />
+                    </span>
                     <span className="flex items-center gap-1 h-6 px-2 rounded bg-charcoal/5 border border-charcoal/15 text-charcoal text-[8px] font-bold uppercase">
                       COD
                     </span>

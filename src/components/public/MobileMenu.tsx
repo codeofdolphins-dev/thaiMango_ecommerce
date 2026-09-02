@@ -222,13 +222,10 @@ export default function MobileMenu() {
       <div className="flex justify-between items-center px-6 md:px-12 py-6 border-b border-stone-200/70 shrink-0 sticky top-0 bg-[#FBF9F6]/95 backdrop-blur-md z-10">
         <Link href="/" className="flex items-center gap-3" onClick={closeMenu}>
           <img
-            src="/images/logo.png"
+            src="/brand/logo.svg"
             alt="Thai Mango"
-            className="w-10 h-10 object-contain rounded-full shadow-sm"
+            className="h-12 w-auto"
           />
-          <span className="hidden sm:inline text-lg font-serif tracking-widest uppercase text-charcoal">
-            Thai Mango
-          </span>
         </Link>
         <div className="flex items-center gap-6">
           <div className="lang-switcher flex items-center gap-1 text-[10px] tracking-widest uppercase font-semibold">

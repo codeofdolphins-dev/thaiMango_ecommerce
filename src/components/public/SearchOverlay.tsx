@@ -178,7 +178,7 @@ export default function SearchOverlay() {
                     onClick={closeSearch}
                   >
                     <img
-                      src="/images/logo.png"
+                      src="/brand/logo.svg"
                       alt={item.title}
                       className="w-12 h-12 object-contain p-1 rounded-xl bg-cream shrink-0"
                     />

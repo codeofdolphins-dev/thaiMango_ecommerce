@@ -80,9 +80,9 @@ export default function SiteHeader({ variant }: { variant: "hero" | "solid" }) {
           aria-label="Thai Mango home"
         >
           <img
-            src="/images/logo.png"
-            alt="Thai Mango"
-            className="w-12 h-12 md:w-14 md:h-14 object-contain rounded-full shadow-md group-hover:scale-105 transition-transform duration-300"
+            src="/brand/logo-dark.svg"
+            alt="Bangkok Mango"
+            className="h-12 md:h-14 w-auto group-hover:scale-105 transition-transform duration-300"
           />
         </Link>
 

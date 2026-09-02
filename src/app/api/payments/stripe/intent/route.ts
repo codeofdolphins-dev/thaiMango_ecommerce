@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { ApiResponse, ApiError } from "@/helper/apiResponse";
 import { computeOrderAmount } from "@/helper/orderAmount";
 import { checkoutPayloadSchema } from "@/schemas/payment.schema";
+import { CouponError } from "@/helper/coupon";
 import { getStoreSettings, resolveGatewayCredentials } from "@/lib/storeSettings";
 import { CURRENCIES } from "@/lib/currency";
 
@@ -59,6 +60,10 @@ export async function POST(req: Request) {
         );
         return NextResponse.json(apiResponse, { status: apiResponse.statusCode });
     } catch (error) {
+        if (error instanceof CouponError) {
+            const apiError = new ApiError(400, error.message);
+            return NextResponse.json(apiError, { status: apiError.statusCode });
+        }
         console.error("Stripe intent creation failed:", error);
         const apiError = new ApiError(500, "Could not initiate card payment. Please try again.");
         return NextResponse.json(apiError, { status: apiError.statusCode });

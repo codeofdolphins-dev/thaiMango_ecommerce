@@ -61,11 +61,11 @@ export default function AdminSidebar({
       <aside
         className={`fixed lg:sticky top-0 left-0 z-50 h-screen shrink-0 bg-white border-r border-cream flex flex-col transition-all duration-300 lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
-        } ${collapsed ? "w-[248px] lg:w-[84px]" : "w-[248px]"}`}
+        } ${collapsed ? "w-62 lg:w21" : "w-62"}`}
       >
         {/* Brand */}
         <div
-          className={`h-[72px] flex items-center gap-3 border-b border-cream shrink-0 ${
+          className={`h-18 flex items-center gap-3 border-b border-cream shrink-0 ${
             collapsed ? "lg:justify-center px-4" : "px-5"
           }`}
         >
@@ -74,16 +74,13 @@ export default function AdminSidebar({
             className="flex items-center gap-3 min-w-0"
           >
             <img
-              src="/images/logo.png"
-              alt="Thai Mango"
-              className="w-10 h-10 object-contain rounded-full shadow-sm shrink-0"
+              src="/brand/logo.svg"
+              alt="Bangkok Mango"
+              className={`h-11 w-auto shrink-0 ${collapsed ? "lg:h-9" : ""}`}
             />
             <div className={`leading-tight ${collapsed ? "lg:hidden" : ""}`}>
               <span className="block text-[10px] tracking-[0.2em] uppercase text-accent font-bold">
                 Command Center
-              </span>
-              <span className="block font-serif text-lg text-charcoal">
-                Thai Mango
               </span>
             </div>
           </Link>

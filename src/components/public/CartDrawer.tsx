@@ -32,7 +32,7 @@ export default function CartDrawer() {
       return;
     }
     closeCart();
-    router.push("/checkout");
+    router.push("/cart");
   };
 
   return (

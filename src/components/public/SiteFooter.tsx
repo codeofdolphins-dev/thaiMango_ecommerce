@@ -57,15 +57,9 @@ export default function SiteFooter() {
       <div className="max-w-screen-2xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 lg:gap-8 mb-20">
         {/* Col 1 */}
         <div className="lg:pr-12 text-center md:text-left">
-          <div className="flex items-center justify-center md:justify-start gap-3 mb-6">
-            <img
-              src="/images/logo.png"
-              alt={storeName}
-              className="w-12 h-12 object-contain rounded-full shadow-md"
-            />
-            <h3 className="font-serif text-2xl md:text-3xl tracking-widest uppercase">
-              {storeName}
-            </h3>
+          <div className="flex items-center justify-center md:justify-start mb-6">
+            {/* The lockup carries the wordmark, so no separate store-name text */}
+            <img src="/brand/logo-dark.svg" alt={storeName} className="h-24 w-auto" />
           </div>
           <p className="text-sm text-ivory/70 leading-relaxed">
             {t("footer_brand_desc")}
@@ -200,7 +194,7 @@ export default function SiteFooter() {
           {(settings?.card_visa ?? true) && (
             <svg viewBox="0 0 48 32" className="w-11 h-8 rounded-md shadow-sm" aria-label="Visa">
               <rect width="48" height="32" rx="5" fill="#1A1F71" />
-              <text x="24" y="21" textAnchor="middle" fontFamily="Inter, sans-serif" fontStyle="italic" fontWeight="bold" fontSize="12" fill="#ffffff">
+              <text x="24" y="21" textAnchor="middle" fontStyle="italic" fontWeight="bold" fontSize="12" fill="#ffffff">
                 VISA
               </text>
             </svg>
@@ -213,29 +207,22 @@ export default function SiteFooter() {
             </svg>
           )}
           {(settings?.card_rupay ?? true) && (
-            <svg viewBox="0 0 48 32" className="w-11 h-8 rounded-md shadow-sm" aria-label="RuPay">
-              <rect width="48" height="32" rx="5" fill="#FFFFFF" />
-              <text x="24" y="19" textAnchor="middle" fontFamily="Inter, sans-serif" fontWeight="bold" fontSize="9.5" fill="#0A3577">
-                Ru<tspan fill="#F58220">Pay</tspan>
-              </text>
-              <rect x="4" y="23" width="40" height="3" rx="1.5" fill="#0AA84F" />
-            </svg>
+            <span className="w-11 h-8 rounded-md shadow-sm bg-white flex items-center justify-center">
+              <img src="/payments/rupay.svg" alt="RuPay" className="w-8" />
+            </span>
           )}
           {(settings?.card_amex ?? false) && (
             <svg viewBox="0 0 48 32" className="w-11 h-8 rounded-md shadow-sm" aria-label="American Express">
               <rect width="48" height="32" rx="5" fill="#2E77BC" />
-              <text x="24" y="20" textAnchor="middle" fontFamily="Inter, sans-serif" fontWeight="bold" fontSize="9" fill="#ffffff">
+              <text x="24" y="20" textAnchor="middle" fontWeight="bold" fontSize="9" fill="#ffffff">
                 AMEX
               </text>
             </svg>
           )}
           {(settings?.upi_enabled ?? true) && (
-            <svg viewBox="0 0 48 32" className="w-11 h-8 rounded-md shadow-sm" aria-label="UPI">
-              <rect width="48" height="32" rx="5" fill="#FFFFFF" />
-              <text x="24" y="20" textAnchor="middle" fontFamily="Inter, sans-serif" fontWeight="bold" fontSize="11" fill="#4B2E83">
-                UPI
-              </text>
-            </svg>
+            <span className="w-11 h-8 rounded-md shadow-sm bg-white flex items-center justify-center">
+              <img src="/payments/upi.svg" alt="UPI" className="w-8" />
+            </span>
           )}
           {(settings?.cod_enabled ?? true) && (
             <span className="flex items-center gap-1.5 w-auto h-8 px-3 rounded-md bg-ivory/5 border border-ivory/15 text-ivory/70 text-[9px] tracking-wide uppercase font-semibold">

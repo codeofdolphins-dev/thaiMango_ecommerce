@@ -15,7 +15,9 @@ export const checkoutPayloadSchema = z.object({
         )
         .min(1),
     shippingMethod: z.enum(["standard", "priority"]),
-    couponDiscount: z.number().min(0).max(0.5).default(0),
+    /** Coupon CODE only — the discount itself always comes from the Coupon
+     *  table server-side, never from the client. */
+    couponCode: z.string().trim().toUpperCase().max(32).optional(),
     customer: z
         .object({
             name: z.string().optional(),

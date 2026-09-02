@@ -23,10 +23,19 @@ export function InstagramIcon({ className }: { className?: string }) {
 export function RazorpayIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <rect width="24" height="24" rx="5" fill="#0C2451" />
-      {/* Razorpay's angled ribbon over the "R" counter */}
-      <path d="M13.6 4.5 7.9 14.2l1.5-6.1H6.3l-2 9.4h2.9l5.7-9.7-1.5 6.1h3.1l2-9.4h-2.9z" fill="#3395FF" />
-      <path d="M13.6 4.5h3.9l-2.2 9.1h-3.1l1.4-9.1z" fill="#FFFFFF" opacity="0.9" />
+      {/* White tile keeps the navy mark visible on the dark active-tab state */}
+      <rect width="24" height="24" rx="5" fill="#FFFFFF" stroke="#072654" strokeOpacity="0.15" />
+      {/* Official Razorpay ribbon mark (geometry from the brand logo SVG) */}
+      <g transform="translate(4.56 3.52) scale(0.052)">
+        <polygon
+          fill="#3395FF"
+          points="122.6338 105.6902 106.8778 163.6732 197.0338 105.3642 138.0748 325.3482 197.9478 325.4032 285.0458 0.4822"
+        />
+        <path
+          fill="#072654"
+          d="M25.5947,232.9246 L0.8077,325.4026 L123.5337,325.4026 C123.5337,325.4026 173.7317,137.3196 173.7457,137.2656 C173.6987,137.2956 25.5947,232.9246 25.5947,232.9246"
+        />
+      </g>
     </svg>
   );
 }

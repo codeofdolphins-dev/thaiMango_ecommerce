@@ -4,7 +4,7 @@ import AdminGuard from "@/components/admin/AdminGuard";
 import Providers from "@/components/public/Providers";
 
 export const metadata: Metadata = {
-  title: "Thai Mango — Admin Portal",
+  title: "Bangkok Mango — Admin Portal",
   description: "Manage products, orders and customers for Thai Mango.",
 };
 
