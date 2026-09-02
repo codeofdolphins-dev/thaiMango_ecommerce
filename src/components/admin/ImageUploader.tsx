@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useRef, useState } from "react";
+import axios from "axios";
 import {
   ArrowLeft,
   ArrowRight,
@@ -42,24 +43,27 @@ export default function ImageUploader({ value, onChange }: ImageUploaderProps) {
       const formData = new FormData();
       files.forEach((file) => formData.append("files", file));
 
-      const res = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const body = await res.json();
+      const res = await axios.post<{ data: UploadedImage[] }>(
+        "/api/admin/upload",
+        formData
+      );
 
-      if (!res.ok) {
-        /* The route returns per-file reasons in `errors` when a batch is rejected. */
-        const detail = Array.isArray(body.errors) && body.errors.length > 0
-          ? body.errors.join(" · ")
-          : body.message;
-        throw new Error(detail || "Upload failed");
-      }
-
-      const urls = (body.data as UploadedImage[]).map((img) => img.url);
+      const urls = res.data.data.map((img) => img.url);
       onChange([...value, ...urls]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      if (axios.isAxiosError(err) && err.response) {
+        /* The route returns per-file reasons in `errors` when a batch is rejected. */
+        const body = err.response.data as
+          | { errors?: unknown[]; message?: string }
+          | null;
+        const detail =
+          body && Array.isArray(body.errors) && body.errors.length > 0
+            ? body.errors.join(" · ")
+            : body?.message;
+        setError(detail || "Upload failed");
+      } else {
+        setError(err instanceof Error ? err.message : "Upload failed");
+      }
     } finally {
       setUploading(false);
     }

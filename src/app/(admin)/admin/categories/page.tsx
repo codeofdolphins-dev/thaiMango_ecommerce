@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { Card, PageHeader } from "@/components/admin/ui";
+import { unwrap } from "@/lib/http";
 import { categorySchema, CategoryValues } from "@/schemas/category.schema";
 
 function slugify(value: string) {
@@ -30,14 +32,6 @@ const inputCls =
 const labelCls =
   "block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1.5";
 
-async function throwOnError(res: Response) {
-  const body = await res.json();
-  if (!res.ok) {
-    throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-  }
-  return body.data;
-}
-
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
@@ -46,10 +40,7 @@ export default function CategoriesPage() {
 
   const categoriesQuery = useQuery({
     queryKey: ["admin-categories"],
-    queryFn: async (): Promise<AdminCategory[]> => {
-      const res = await fetch("/api/admin/categories");
-      return throwOnError(res);
-    },
+    queryFn: () => unwrap<AdminCategory[]>(axios.get("/api/admin/categories")),
   });
 
   const {
@@ -75,19 +66,12 @@ export default function CategoriesPage() {
   };
 
   const saveMutation = useMutation({
-    mutationFn: async (values: CategoryValues) => {
-      const res = await fetch(
+    mutationFn: (values: CategoryValues) =>
+      unwrap<unknown>(
         editingId === null
-          ? "/api/admin/categories"
-          : `/api/admin/categories/${editingId}`,
-        {
-          method: editingId === null ? "POST" : "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
-        }
-      );
-      return throwOnError(res);
-    },
+          ? axios.post("/api/admin/categories", values)
+          : axios.patch(`/api/admin/categories/${editingId}`, values)
+      ),
     onSuccess: () => {
       invalidate();
       closeForm();
@@ -96,10 +80,8 @@ export default function CategoriesPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" });
-      return throwOnError(res);
-    },
+    mutationFn: (id: number) =>
+      unwrap<unknown>(axios.delete(`/api/admin/categories/${id}`)),
     onSuccess: invalidate,
     onError: (error: Error) => setServerError(error.message),
   });

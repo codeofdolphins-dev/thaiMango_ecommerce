@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import Select from "react-select";
 import { useMoney } from "@/components/admin/useMoney";
 import { Card, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { compactSelectStyles, SelectOption } from "@/components/admin/selectStyles";
+import { unwrap } from "@/lib/http";
 import { defaultVariant, totalStock } from "@/lib/variants";
 import { productImage } from "@/lib/images";
 
@@ -50,14 +52,6 @@ const STATUS_OPTIONS: SelectOption[] = [
   { value: "ARCHIVED", label: "Archived" },
 ];
 
-async function throwOnError(res: Response) {
-  const body = await res.json();
-  if (!res.ok) {
-    throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-  }
-  return body.data;
-}
-
 export default function ProductsPage() {
   const { format: money } = useMoney();
   const queryClient = useQueryClient();
@@ -67,18 +61,12 @@ export default function ProductsPage() {
 
   const productsQuery = useQuery({
     queryKey: ["admin-products"],
-    queryFn: async (): Promise<AdminProduct[]> => {
-      const res = await fetch("/api/admin/products");
-      return throwOnError(res);
-    },
+    queryFn: () => unwrap<AdminProduct[]>(axios.get("/api/admin/products")),
   });
 
   const categoriesQuery = useQuery({
     queryKey: ["admin-categories"],
-    queryFn: async (): Promise<AdminCategory[]> => {
-      const res = await fetch("/api/admin/categories");
-      return throwOnError(res);
-    },
+    queryFn: () => unwrap<AdminCategory[]>(axios.get("/api/admin/categories")),
   });
 
   const invalidate = () => {
@@ -88,23 +76,15 @@ export default function ProductsPage() {
   };
 
   const statusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await fetch(`/api/admin/products/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      return throwOnError(res);
-    },
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      unwrap<unknown>(axios.patch(`/api/admin/products/${id}`, { status })),
     onSuccess: invalidate,
     onError: (error: Error) => setServerError(error.message),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
-      return throwOnError(res);
-    },
+    mutationFn: (id: string) =>
+      unwrap<unknown>(axios.delete(`/api/admin/products/${id}`)),
     onSuccess: invalidate,
     onError: (error: Error) => setServerError(error.message),
   });

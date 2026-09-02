@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import {
   ArrowUpRight,
   Clock,
@@ -19,6 +20,7 @@ import {
   SectionTitle,
   StatCard,
 } from "@/components/admin/ui";
+import { unwrap } from "@/lib/http";
 
 interface Stats {
   products: number;
@@ -68,29 +70,17 @@ export default function DashboardPage() {
   const { format: money } = useMoney();
   const statsQuery = useQuery({
     queryKey: ["admin-stats"],
-    queryFn: async (): Promise<Stats> => {
-      const res = await fetch("/api/admin/stats");
-      if (!res.ok) throw new Error("Failed to load stats");
-      return (await res.json()).data;
-    },
+    queryFn: () => unwrap<Stats>(axios.get("/api/admin/stats")),
   });
 
   const ordersQuery = useQuery({
     queryKey: ["admin-orders"],
-    queryFn: async (): Promise<AdminOrder[]> => {
-      const res = await fetch("/api/admin/orders");
-      if (!res.ok) throw new Error("Failed to load orders");
-      return (await res.json()).data;
-    },
+    queryFn: () => unwrap<AdminOrder[]>(axios.get("/api/admin/orders")),
   });
 
   const reviewsQuery = useQuery({
     queryKey: ["admin-reviews"],
-    queryFn: async (): Promise<AdminReview[]> => {
-      const res = await fetch("/api/admin/reviews");
-      if (!res.ok) throw new Error("Failed to load reviews");
-      return (await res.json()).data;
-    },
+    queryFn: () => unwrap<AdminReview[]>(axios.get("/api/admin/reviews")),
   });
 
   const stats = statsQuery.data;

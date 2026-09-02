@@ -459,13 +459,23 @@ export default function CheckoutPage() {
         return;
       }
 
-      const res = await fetch("/api/payments/razorpay/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload()),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.data?.orderId) {
+      let data: {
+        data?: { orderId: string; amount: number; currency: string; keyId: string };
+        message?: string;
+      } | null = null;
+      try {
+        const res = await axios.post(
+          "/api/payments/razorpay/order",
+          buildPayload()
+        );
+        data = res.data ?? null;
+      } catch (error) {
+        /* A non-2xx reply still carries the API's message; anything without a
+           response (network failure) belongs to the outer catch. */
+        if (!axios.isAxiosError(error) || !error.response) throw error;
+        data = (error.response.data as typeof data) ?? null;
+      }
+      if (!data?.data?.orderId) {
         showToast(data?.message || "Could not initiate payment.");
         setIsSubmitting(false);
         return;
@@ -487,17 +497,8 @@ export default function CheckoutPage() {
         theme: { color: "#7A1233" },
         handler: async (response) => {
           try {
-            const verifyRes = await fetch("/api/payments/razorpay/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(response),
-            });
-            if (verifyRes.ok) {
-              completeCheckout(response.razorpay_payment_id);
-            } else {
-              showToast("Payment verification failed. Contact support.");
-              setIsSubmitting(false);
-            }
+            await axios.post("/api/payments/razorpay/verify", response);
+            completeCheckout(response.razorpay_payment_id);
           } catch {
             showToast("Payment verification failed. Contact support.");
             setIsSubmitting(false);

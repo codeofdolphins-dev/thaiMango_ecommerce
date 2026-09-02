@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -18,6 +19,7 @@ import { InstagramIcon } from "@/components/public/BrandIcons";
 import { useStore } from "@/components/public/store";
 import { defaultVariant, minPrice } from "@/lib/variants";
 import { productImage } from "@/lib/images";
+import { unwrap } from "@/lib/http";
 
 interface ApiVariant {
   label: string;
@@ -32,10 +34,12 @@ interface ApiProduct {
   id: string;
   slug: string;
   name_en: string;
+  name_th: string;
   description_en: string;
+  description_th: string;
   images: string[];
   highlights: string[];
-  category: { slug: string; name_en: string };
+  category: { slug: string; name_en: string; name_th: string };
   productVariant: ApiVariant[];
 }
 
@@ -58,6 +62,7 @@ const FALLBACK_IMAGES = [
 ];
 
 type PriceFormatter = (value: number) => string;
+type Localizer = (en: string, th?: string | null) => string;
 
 interface HomeProduct {
   id: string;
@@ -74,7 +79,11 @@ interface HomeProduct {
   discountPct?: number;
 }
 
-function mapProduct(p: ApiProduct, formatPrice: PriceFormatter): HomeProduct {
+function mapProduct(
+  p: ApiProduct,
+  formatPrice: PriceFormatter,
+  localized: Localizer
+): HomeProduct {
   /* Cards show the default variant; "from <price>" when cheaper sizes exist. */
   const variant = defaultVariant(p.productVariant);
   const lowest = minPrice(p.productVariant);
@@ -85,11 +94,11 @@ function mapProduct(p: ApiProduct, formatPrice: PriceFormatter): HomeProduct {
   return {
     id: p.id,
     slug: p.slug,
-    name: p.name_en,
-    desc: p.description_en,
+    name: localized(p.name_en, p.name_th),
+    desc: localized(p.description_en, p.description_th),
     image: productImage(p.images),
     categorySlug: p.category.slug,
-    categoryName: p.category.name_en,
+    categoryName: localized(p.category.name_en, p.category.name_th),
     badges: p.highlights.slice(0, 2),
     price: hasCheaper ? lowest : price,
     priceDisplay: !variant
@@ -105,38 +114,30 @@ function mapProduct(p: ApiProduct, formatPrice: PriceFormatter): HomeProduct {
 }
 
 export default function Home() {
-  const { t, addToCart, showToast, formatPrice } = useStore();
+  const { t, localized, addToCart, showToast, formatPrice } = useStore();
 
   /* Admin-editable copy (Admin → Site Content) */
   const contentQuery = useQuery({
     queryKey: ["site-content"],
-    queryFn: async (): Promise<ContentBlock[]> => {
-      const res = await fetch("/api/site-content");
-      if (!res.ok) throw new Error("Failed to load site content");
-      const body = await res.json();
-      return body.data;
-    },
+    queryFn: async (): Promise<ContentBlock[]> =>
+      unwrap<ContentBlock[]>(axios.get("/api/site-content")),
     staleTime: 5 * 60 * 1000,
   });
 
   const productsQuery = useQuery({
     queryKey: ["home-products"],
     queryFn: async (): Promise<ApiProduct[]> => {
-      const res = await fetch("/api/products?limit=6");
-      if (!res.ok) throw new Error("Failed to load products");
-      const body = await res.json();
-      return body.data.products;
+      const data = await unwrap<{ products: ApiProduct[] }>(
+        axios.get("/api/products?limit=6")
+      );
+      return data.products;
     },
   });
 
   const categoriesQuery = useQuery({
     queryKey: ["categories"],
-    queryFn: async (): Promise<ApiCategory[]> => {
-      const res = await fetch("/api/categories");
-      if (!res.ok) throw new Error("Failed to load categories");
-      const body = await res.json();
-      return body.data;
-    },
+    queryFn: async (): Promise<ApiCategory[]> =>
+      unwrap<ApiCategory[]>(axios.get("/api/categories")),
   });
 
   const blocks = new Map(
@@ -146,7 +147,7 @@ export default function Home() {
     blocks.get(id)?.trim() || fallback;
 
   const products = (productsQuery.data ?? []).map((p) =>
-    mapProduct(p, formatPrice)
+    mapProduct(p, formatPrice, localized)
   );
   const showcase = products.slice(0, 3);
   const collections = products.length > 3 ? products.slice(3, 6) : products;
@@ -222,7 +223,7 @@ export default function Home() {
           <div className="max-w-screen-2xl mx-auto px-6 sm:px-10 py-10 md:py-6 grid grid-cols-2 md:grid-cols-5 gap-y-10 md:gap-y-0 gap-x-6 md:gap-x-0 md:divide-x md:divide-gold/30 text-center items-center">
             {/* 1: 100% Natural */}
             <div className="px-2 md:px-4 flex flex-col items-center justify-center group">
-              <span className="w-14 h-14 md:w-14 md:h-14 rounded-full border-2 border-gold flex items-center justify-center text-[#E5B869] mb-3 group-hover:scale-110 group-hover:bg-[#E5B869]/10 transition-all duration-300 shadow-sm">
+              <span className="w-14 h-14 md:w-14 md:h-14 rounded-full border-2 border-gold flex items-center justify-center text-gold mb-3 group-hover:scale-110 group-hover:bg-gold/10 transition-all duration-300 shadow-sm">
                 <svg className="w-7 h-7 md:w-7 md:h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 22V10"></path>
                   <path d="M12 10C12 5 8 3 4 3c0 5 2 9 8 9"></path>
@@ -231,12 +232,12 @@ export default function Home() {
                 </svg>
               </span>
               <span className="text-sm md:text-sm font-semibold tracking-wide text-white mb-1">ธรรมชาติ 100%</span>
-              <span className="text-[10px] md:text-[11px] tracking-[0.18em] uppercase font-bold text-[#E5B869]">100% NATURAL</span>
+              <span className="text-[10px] md:text-[11px] tracking-[0.18em] uppercase font-bold text-gold">100% NATURAL</span>
             </div>
 
             {/* 2: Finest Quality Mango */}
             <div className="px-2 md:px-4 flex flex-col items-center justify-center group">
-              <span className="w-14 h-14 md:w-14 md:h-14 rounded-full border-2 border-gold flex items-center justify-center text-[#E5B869] mb-3 group-hover:scale-110 group-hover:bg-[#E5B869]/10 transition-all duration-300 shadow-sm">
+              <span className="w-14 h-14 md:w-14 md:h-14 rounded-full border-2 border-gold flex items-center justify-center text-gold mb-3 group-hover:scale-110 group-hover:bg-gold/10 transition-all duration-300 shadow-sm">
                 <svg className="w-7 h-7 md:w-7 md:h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M10 4c-1.2-1.8-3-2.5-5-1.8 0 2.8 1.8 3.8 4.8 3.8"></path>
                   <path d="M9.8 6.5C6 6.5 3 10.2 4 15c1 4.8 5.8 6.8 8.8 4.8 4-2.8 5-8.8 3-11.8-1.5-1.8-3.8-2.2-6-1.5z"></path>
@@ -244,7 +245,7 @@ export default function Home() {
                 </svg>
               </span>
               <span className="text-sm md:text-sm font-semibold tracking-wide text-white mb-1">คัดสรรจากมะม่วงคุณภาพ</span>
-              <span className="text-[10px] md:text-[11px] tracking-[0.18em] uppercase font-bold text-[#E5B869]">FINEST QUALITY MANGO</span>
+              <span className="text-[10px] md:text-[11px] tracking-[0.18em] uppercase font-bold text-gold">FINEST QUALITY MANGO</span>
             </div>
 
             {/* 3: Product of Thailand */}
@@ -257,12 +258,12 @@ export default function Home() {
                 </svg>
               </span>
               <span className="text-sm md:text-sm font-semibold tracking-wide text-white mb-1">ผลิตในประเทศไทย</span>
-              <span className="text-[10px] md:text-[11px] tracking-[0.18em] uppercase font-bold text-[#E5B869]">PRODUCT OF THAILAND</span>
+              <span className="text-[10px] md:text-[11px] tracking-[0.18em] uppercase font-bold text-gold">PRODUCT OF THAILAND</span>
             </div>
 
             {/* 4: Delicious & Chewy */}
             <div className="px-2 md:px-4 flex flex-col items-center justify-center group">
-              <span className="w-14 h-14 md:w-14 md:h-14 rounded-full border-2 border-gold flex items-center justify-center text-[#E5B869] mb-3 group-hover:scale-110 group-hover:bg-[#E5B869]/10 transition-all duration-300 shadow-sm">
+              <span className="w-14 h-14 md:w-14 md:h-14 rounded-full border-2 border-gold flex items-center justify-center text-gold mb-3 group-hover:scale-110 group-hover:bg-gold/10 transition-all duration-300 shadow-sm">
                 <svg className="w-7 h-7 md:w-7 md:h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5.5 14c1 4.5 4.5 6.5 8.5 6.5 4 0 7-3 7-7 0-3.2-2.2-5.2-4.5-5.2-3 0-5 2-6.5 4-2 0-3.5 1-4.5 1.7z"></path>
                   <circle cx="9" cy="8" r="1" fill="currentColor"></circle>
@@ -271,12 +272,12 @@ export default function Home() {
                 </svg>
               </span>
               <span className="text-sm md:text-sm font-semibold tracking-wide text-white mb-1">อร่อย เพลิน เคี้ยวหนึบ</span>
-              <span className="text-[10px] md:text-[11px] tracking-[0.18em] uppercase font-bold text-[#E5B869]">DELICIOUS &amp; CHEWY</span>
+              <span className="text-[10px] md:text-[11px] tracking-[0.18em] uppercase font-bold text-gold">DELICIOUS &amp; CHEWY</span>
             </div>
 
             {/* 5: For All Ages */}
             <div className="col-span-2 md:col-span-1 px-2 md:px-4 flex flex-col items-center justify-center group max-w-xs mx-auto">
-              <span className="w-14 h-14 md:w-14 md:h-14 rounded-full border-2 border-gold flex items-center justify-center text-[#E5B869] mb-3 group-hover:scale-110 group-hover:bg-[#E5B869]/10 transition-all duration-300 shadow-sm">
+              <span className="w-14 h-14 md:w-14 md:h-14 rounded-full border-2 border-gold flex items-center justify-center text-gold mb-3 group-hover:scale-110 group-hover:bg-gold/10 transition-all duration-300 shadow-sm">
                 <svg className="w-7 h-7 md:w-7 md:h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="8" cy="5.5" r="2.2"></circle>
                   <path d="M5.5 21v-5a3 3 0 0 1 5.5 0v5"></path>
@@ -285,7 +286,7 @@ export default function Home() {
                 </svg>
               </span>
               <span className="text-sm md:text-sm font-semibold tracking-wide text-white mb-1">เหมาะสำหรับทุกวัย</span>
-              <span className="text-[10px] md:text-[11px] tracking-[0.18em] uppercase font-bold text-[#E5B869]">FOR ALL AGES</span>
+              <span className="text-[10px] md:text-[11px] tracking-[0.18em] uppercase font-bold text-gold">FOR ALL AGES</span>
             </div>
           </div>
         </div>
@@ -302,7 +303,7 @@ export default function Home() {
           {productsPending ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="rounded-[32px] aspect-[4/5] bg-white/70 animate-pulse" />
+                <div key={i} className="rounded-4xl aspect-4/5 bg-white/70 animate-pulse" />
               ))}
             </div>
           ) : showcase.length === 0 ? (
@@ -315,18 +316,18 @@ export default function Home() {
                 <Link
                   key={product.id}
                   href={`/product-detail/${product.slug}`}
-                  className="relative overflow-hidden rounded-[32px] aspect-[4/5] group cursor-pointer reveal block"
+                  className="relative overflow-hidden rounded-4xl aspect-4/5 group cursor-pointer reveal block"
                   style={i > 0 ? { transitionDelay: `${i * 200}ms` } : undefined}
                 >
                   {/* Background Image */}
                   <img
                     src={product.image}
                     alt={product.name}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105 bg-[#F7F4EE]"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105 bg-ivory"
                   />
 
-                  {/* Dark Gradient Overlay for text readability */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                  {/* Dark linear Overlay for text readability */}
+                  <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent"></div>
 
                   {/* Content */}
                   <div className="absolute bottom-0 left-0 w-full p-8 md:p-10 text-white">
@@ -372,7 +373,7 @@ export default function Home() {
           {categoriesQuery.isPending ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
               {[0, 1].map((i) => (
-                <div key={i} className="rounded-[32px] aspect-[4/3] md:aspect-[16/9] lg:aspect-[2/1] bg-white/70 animate-pulse" />
+                <div key={i} className="rounded-4xl aspect-4/3 md:aspect-video lg:aspect-2/1 bg-white/70 animate-pulse" />
               ))}
             </div>
           ) : rootCategories.length === 0 ? (
@@ -385,18 +386,18 @@ export default function Home() {
                 <Link
                   key={category.slug}
                   href={`/shop?category=${encodeURIComponent(category.slug)}`}
-                  className="relative overflow-hidden rounded-[32px] aspect-[4/3] md:aspect-[16/9] lg:aspect-[2/1] group block reveal"
+                  className="relative overflow-hidden rounded-4xl aspect-4/3 md:aspect-video lg:aspect-2/1 group block reveal"
                   style={i > 0 ? { transitionDelay: `${(i % 2) * 200}ms` } : undefined}
                 >
                   <img
                     src={categoryImage(category.slug, i)}
-                    alt={`${category.name_en} Category`}
+                    alt={`${localized(category.name_en, category.name_th)} Category`}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                  <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent"></div>
                   <div className="absolute bottom-0 left-0 p-8 md:p-10 z-10 w-full">
                     <span className="block text-[#F29F86] text-[10px] md:text-xs tracking-[0.2em] font-bold uppercase mb-2">Selection</span>
-                    <h3 className="text-white text-3xl md:text-4xl font-serif font-medium uppercase tracking-tight">{category.name_en}</h3>
+                    <h3 className="text-white text-3xl md:text-4xl font-serif font-medium uppercase tracking-tight">{localized(category.name_en, category.name_th)}</h3>
 
                     {/* Hover Button */}
                     <div className="flex items-center gap-3 mt-6 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 delay-100">
@@ -434,7 +435,7 @@ export default function Home() {
           {productsPending ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="rounded-[24px] aspect-[4/5] bg-white/70 animate-pulse" />
+                <div key={i} className="rounded-3xl aspect-4/5 bg-white/70 animate-pulse" />
               ))}
             </div>
           ) : collections.length === 0 ? (
@@ -446,10 +447,10 @@ export default function Home() {
               {collections.map((product, i) => (
                 <div
                   key={product.id}
-                  className="bg-white rounded-[24px] overflow-hidden shadow-sm group cursor-pointer reveal"
+                  className="bg-white rounded-3xl overflow-hidden shadow-sm group cursor-pointer reveal"
                   style={i > 0 ? { transitionDelay: `${i * 200}ms` } : undefined}
                 >
-                  <div className="relative aspect-[4/3] overflow-hidden bg-[#FCE9D8]">
+                  <div className="relative aspect-4/3 overflow-hidden bg-[#FCE9D8]">
                     <Link href={`/product-detail/${product.slug}`} className="absolute inset-0">
                       <img
                         src={product.image}
@@ -534,7 +535,7 @@ export default function Home() {
           <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
             {/* Image */}
             <div className="w-full lg:w-1/2">
-              <div className="relative aspect-[4/4.5] lg:aspect-[4/3.6] rounded-[28px] overflow-hidden border border-accent/10">
+              <div className="relative aspect-4/4.5 lg:aspect-[4/3.6] rounded-[28px] overflow-hidden border border-accent/10">
                 <img src="/images/bangkok-mango-beetroot-1.png" alt="Our Founder" className="w-full h-full object-cover" />
               </div>
             </div>
@@ -593,18 +594,18 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-2 gap-4 lg:h-[600px]">
+          <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-2 gap-4 lg:h-150">
             {/* Large tile */}
-            <Link href="/rituals" className="relative rounded-[24px] overflow-hidden group cursor-pointer lg:row-span-2 aspect-[4/3] lg:aspect-auto reveal">
+            <Link href="/rituals" className="relative rounded-3xl overflow-hidden group cursor-pointer lg:row-span-2 aspect-4/3 lg:aspect-auto reveal">
               <img src="/images/bangkok-mango-beetroot-1.png" alt="Thai Mango editorial" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+              <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent"></div>
               <span className="absolute top-4 left-4 bg-white/90 text-[#334155] text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">Editorial</span>
             </Link>
 
             {/* Small tile 1 */}
-            <Link href="/rituals" className="relative rounded-[24px] overflow-hidden group cursor-pointer aspect-[4/3] lg:aspect-auto reveal delay-[100ms]">
+            <Link href="/rituals" className="relative rounded-3xl overflow-hidden group cursor-pointer aspect-4/3 lg:aspect-auto reveal delay-100">
               <img src="/images/bangkok-mango-beetroot-2.png" alt="Behind the harvest" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"></div>
+              <div className="absolute inset-0 bg-linear-to-t from-black/50 via-black/10 to-transparent"></div>
               <span className="absolute top-4 left-4 bg-white/90 text-[#334155] text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">Editorial</span>
               <div className="absolute bottom-4 left-4 right-4">
                 <p className="text-white text-sm font-semibold tracking-wide">Behind the Harvest</p>
@@ -612,7 +613,7 @@ export default function Home() {
             </Link>
 
             {/* CTA tile */}
-            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="relative rounded-[24px] overflow-hidden bg-accent flex flex-col justify-between p-6 aspect-[4/3] lg:aspect-auto reveal delay-[150ms]">
+            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="relative rounded-3xl overflow-hidden bg-accent flex flex-col justify-between p-6 aspect-4/3 lg:aspect-auto reveal delay-150">
               <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
                 <InstagramIcon className="w-5 h-5 text-white" />
               </span>
@@ -627,16 +628,16 @@ export default function Home() {
             </a>
 
             {/* Small tile 2 */}
-            <Link href="/rituals" className="relative rounded-[24px] overflow-hidden group cursor-pointer aspect-[4/3] lg:aspect-auto reveal delay-[200ms]">
+            <Link href="/rituals" className="relative rounded-3xl overflow-hidden group cursor-pointer aspect-4/3 lg:aspect-auto reveal delay-200">
               <img src="/images/bangkok-mango-beetroot-1.png" alt="Thai Mango snacking ritual" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"></div>
+              <div className="absolute inset-0 bg-linear-to-t from-black/50 via-black/10 to-transparent"></div>
               <span className="absolute top-4 left-4 bg-white/90 text-[#334155] text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">Editorial</span>
             </Link>
 
             {/* Small tile 3 */}
-            <Link href="/rituals" className="relative rounded-[24px] overflow-hidden group cursor-pointer aspect-[4/3] lg:aspect-auto reveal delay-[250ms]">
+            <Link href="/rituals" className="relative rounded-3xl overflow-hidden group cursor-pointer aspect-4/3 lg:aspect-auto reveal delay-250">
               <img src="/images/bangkok-mango-beetroot-2.png" alt="Snacking rituals" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"></div>
+              <div className="absolute inset-0 bg-linear-to-t from-black/50 via-black/10 to-transparent"></div>
               <span className="absolute top-4 left-4 bg-white/90 text-[#334155] text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">Editorial</span>
               <div className="absolute bottom-4 left-4 right-4">
                 <p className="text-white text-sm font-semibold tracking-wide">Snacking Rituals</p>
@@ -651,7 +652,7 @@ export default function Home() {
         <img src="/images/bangkok-mango-beetroot-1.png" alt="Thai Mango Philosophy" className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay" />
 
         {/* Corner Frame Accent */}
-        <div className="hidden md:block absolute inset-8 md:inset-12 z-[5] pointer-events-none">
+        <div className="hidden md:block absolute inset-8 md:inset-12 z-5 pointer-events-none">
           <span className="absolute top-0 left-0 w-14 h-14 border-t border-l border-ivory/25"></span>
           <span className="absolute top-0 right-0 w-14 h-14 border-t border-r border-ivory/25"></span>
           <span className="absolute bottom-0 left-0 w-14 h-14 border-b border-l border-ivory/25"></span>
@@ -693,7 +694,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Card 1 */}
             <article className="group cursor-pointer reveal">
-              <div className="relative aspect-[4/3] rounded-[20px] overflow-hidden mb-5 shadow-sm">
+              <div className="relative aspect-4/3 rounded-[20px] overflow-hidden mb-5 shadow-sm">
                 <img src="/images/bangkok-mango-beetroot-1.png" alt="The Art of Sun-Drying" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" />
                 <span className="absolute top-4 left-4 bg-white/90 text-accent text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">Craft</span>
               </div>
@@ -711,8 +712,8 @@ export default function Home() {
             </article>
 
             {/* Card 2 */}
-            <article className="group cursor-pointer reveal delay-[100ms]">
-              <div className="relative aspect-[4/3] rounded-[20px] overflow-hidden mb-5 shadow-sm">
+            <article className="group cursor-pointer reveal delay-100">
+              <div className="relative aspect-4/3 rounded-[20px] overflow-hidden mb-5 shadow-sm">
                 <img src="/images/bangkok-mango-beetroot-2.png" alt="Understanding Mango Varietals" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" />
                 <span className="absolute top-4 left-4 bg-white/90 text-accent text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">Varietals</span>
               </div>
@@ -730,8 +731,8 @@ export default function Home() {
             </article>
 
             {/* Card 3 */}
-            <article className="group cursor-pointer reveal delay-[200ms]">
-              <div className="relative aspect-[4/3] rounded-[20px] overflow-hidden mb-5 shadow-sm">
+            <article className="group cursor-pointer reveal delay-200">
+              <div className="relative aspect-4/3 rounded-[20px] overflow-hidden mb-5 shadow-sm">
                 <img src="/images/bangkok-mango-beetroot-1.png" alt="Ways to Enjoy Dried Mango" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" />
                 <span className="absolute top-4 left-4 bg-white/90 text-accent text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full">Ingredients</span>
               </div>
@@ -823,16 +824,16 @@ export default function Home() {
       </section>
 
       {/* Trust / Quality Pillars */}
-      <section className="py-16 bg-[#52091E] text-white border-y border-gold/20 reveal">
+      <section className="py-16 bg-burgundy text-white border-y border-gold/20 reveal">
         <div className="max-w-screen-2xl mx-auto px-6 md:px-12">
           <div className="text-center mb-12">
-            <span className="text-[10px] tracking-[0.3em] uppercase text-[#E5B869] font-bold">Quality &amp; Authenticity</span>
+            <span className="text-[10px] tracking-[0.3em] uppercase text-gold font-bold">Quality &amp; Authenticity</span>
             <h2 className="font-serif text-3xl md:text-4xl text-white mt-2">The Thai Mango Standard</h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-y-10 md:gap-y-4 gap-x-6 md:gap-x-4 text-center">
             {/* 1 */}
             <div className="px-2 md:px-3 flex flex-col items-center group">
-              <span className="w-14 h-14 rounded-full border-2 border-gold flex items-center justify-center text-[#E5B869] mb-3 group-hover:scale-110 group-hover:bg-[#E5B869]/10 transition-all duration-300 shadow">
+              <span className="w-14 h-14 rounded-full border-2 border-gold flex items-center justify-center text-gold mb-3 group-hover:scale-110 group-hover:bg-gold/10 transition-all duration-300 shadow">
                 <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 22V10"></path>
                   <path d="M12 10C12 5 8 3 4 3c0 5 2 9 8 9"></path>
@@ -841,13 +842,13 @@ export default function Home() {
                 </svg>
               </span>
               <h3 className="text-sm font-semibold text-white mb-0.5">ธรรมชาติ 100%</h3>
-              <p className="text-[10px] uppercase tracking-widest text-[#E5B869] font-bold mb-2">100% Natural</p>
+              <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-2">100% Natural</p>
               <p className="text-xs text-white/70">Pure natural fruit with zero artificial preservatives.</p>
             </div>
 
             {/* 2 */}
             <div className="px-2 md:px-3 flex flex-col items-center group">
-              <span className="w-14 h-14 rounded-full border-2 border-gold flex items-center justify-center text-[#E5B869] mb-3 group-hover:scale-110 group-hover:bg-[#E5B869]/10 transition-all duration-300 shadow">
+              <span className="w-14 h-14 rounded-full border-2 border-gold flex items-center justify-center text-gold mb-3 group-hover:scale-110 group-hover:bg-gold/10 transition-all duration-300 shadow">
                 <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M10 4c-1.2-1.8-3-2.5-5-1.8 0 2.8 1.8 3.8 4.8 3.8"></path>
                   <path d="M9.8 6.5C6 6.5 3 10.2 4 15c1 4.8 5.8 6.8 8.8 4.8 4-2.8 5-8.8 3-11.8-1.5-1.8-3.8-2.2-6-1.5z"></path>
@@ -855,7 +856,7 @@ export default function Home() {
                 </svg>
               </span>
               <h3 className="text-sm font-semibold text-white mb-0.5">คัดสรรจากมะม่วงคุณภาพ</h3>
-              <p className="text-[10px] uppercase tracking-widest text-[#E5B869] font-bold mb-2">Finest Quality Mango</p>
+              <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-2">Finest Quality Mango</p>
               <p className="text-xs text-white/70">Hand-selected ripe mangoes for maximum sweetness and aroma.</p>
             </div>
 
@@ -869,13 +870,13 @@ export default function Home() {
                 </svg>
               </span>
               <h3 className="text-sm font-semibold text-white mb-0.5">ผลิตในประเทศไทย</h3>
-              <p className="text-[10px] uppercase tracking-widest text-[#E5B869] font-bold mb-2">Product of Thailand</p>
+              <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-2">Product of Thailand</p>
               <p className="text-xs text-white/70">Authentically produced and packed in Thailand.</p>
             </div>
 
             {/* 4 */}
             <div className="px-2 md:px-3 flex flex-col items-center group">
-              <span className="w-14 h-14 rounded-full border-2 border-gold flex items-center justify-center text-[#E5B869] mb-3 group-hover:scale-110 group-hover:bg-[#E5B869]/10 transition-all duration-300 shadow">
+              <span className="w-14 h-14 rounded-full border-2 border-gold flex items-center justify-center text-gold mb-3 group-hover:scale-110 group-hover:bg-gold/10 transition-all duration-300 shadow">
                 <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5.5 14c1 4.5 4.5 6.5 8.5 6.5 4 0 7-3 7-7 0-3.2-2.2-5.2-4.5-5.2-3 0-5 2-6.5 4-2 0-3.5 1-4.5 1.7z"></path>
                   <circle cx="9" cy="8" r="1" fill="currentColor"></circle>
@@ -884,13 +885,13 @@ export default function Home() {
                 </svg>
               </span>
               <h3 className="text-sm font-semibold text-white mb-0.5">อร่อย เพลิน เคี้ยวหนึบ</h3>
-              <p className="text-[10px] uppercase tracking-widest text-[#E5B869] font-bold mb-2">Delicious &amp; Chewy</p>
+              <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-2">Delicious &amp; Chewy</p>
               <p className="text-xs text-white/70">Gently dried for that irresistibly soft, chewy mouthfeel.</p>
             </div>
 
             {/* 5 */}
             <div className="col-span-2 md:col-span-1 px-2 md:px-3 flex flex-col items-center group max-w-xs mx-auto">
-              <span className="w-14 h-14 rounded-full border-2 border-gold flex items-center justify-center text-[#E5B869] mb-3 group-hover:scale-110 group-hover:bg-[#E5B869]/10 transition-all duration-300 shadow">
+              <span className="w-14 h-14 rounded-full border-2 border-gold flex items-center justify-center text-gold mb-3 group-hover:scale-110 group-hover:bg-gold/10 transition-all duration-300 shadow">
                 <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="8" cy="5.5" r="2.2"></circle>
                   <path d="M5.5 21v-5a3 3 0 0 1 5.5 0v5"></path>
@@ -899,7 +900,7 @@ export default function Home() {
                 </svg>
               </span>
               <h3 className="text-sm font-semibold text-white mb-0.5">เหมาะสำหรับทุกวัย</h3>
-              <p className="text-[10px] uppercase tracking-widest text-[#E5B869] font-bold mb-2">For All Ages</p>
+              <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-2">For All Ages</p>
               <p className="text-xs text-white/70">Wholesome, guilt-free snacking for kids and adults alike.</p>
             </div>
           </div>

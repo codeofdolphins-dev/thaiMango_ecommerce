@@ -48,7 +48,7 @@ export default function CartDrawer() {
       {/* Drawer */}
       <div
         id="cart-drawer"
-        className={`fixed top-0 right-0 h-full w-full sm:w-[450px] bg-ivory z-50 transition-transform duration-500 ease-in-out shadow-2xl flex flex-col ${
+        className={`fixed top-0 right-0 h-full w-full sm:w-112.5 bg-ivory z-50 transition-transform duration-500 ease-in-out shadow-2xl flex flex-col ${
           cartOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -136,7 +136,7 @@ export default function CartDrawer() {
               {cart.map((item, index) => (
                 <div
                   key={`${item.name}-${item.size}-${index}`}
-                  className="flex gap-4 p-3 rounded-2xl bg-white border border-cream shadow-sm mb-3 group hover:border-[#E5B869]/40 transition"
+                  className="flex gap-4 p-3 rounded-2xl bg-white border border-cream shadow-sm mb-3 group hover:border-gold/40 transition"
                 >
                   <img
                     src={item.image}
@@ -206,7 +206,7 @@ export default function CartDrawer() {
             className="w-full py-4 bg-charcoal text-ivory text-xs tracking-widest uppercase hover:bg-accent transition duration-300"
             onClick={handleCheckout}
           >
-            {t("checkout")}
+            {t("cart")}
           </button>
         </div>
       </div>

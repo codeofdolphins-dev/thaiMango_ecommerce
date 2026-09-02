@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { Check, Star, Trash2 } from "lucide-react";
 import { Card, PageHeader, StatusBadge } from "@/components/admin/ui";
+import { unwrap } from "@/lib/http";
 
 type ReviewStatus = "PENDING" | "PUBLISHED";
 
@@ -39,14 +41,6 @@ function Stars({ n }: { n: number }) {
   );
 }
 
-async function throwOnError(res: Response) {
-  const body = await res.json();
-  if (!res.ok) {
-    throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-  }
-  return body.data;
-}
-
 export default function ReviewsPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<ReviewStatus | "ALL">("ALL");
@@ -54,10 +48,7 @@ export default function ReviewsPage() {
 
   const reviewsQuery = useQuery({
     queryKey: ["admin-reviews"],
-    queryFn: async (): Promise<AdminReview[]> => {
-      const res = await fetch("/api/admin/reviews");
-      return throwOnError(res);
-    },
+    queryFn: () => unwrap<AdminReview[]>(axios.get("/api/admin/reviews")),
   });
 
   const invalidate = () => {
@@ -66,23 +57,17 @@ export default function ReviewsPage() {
   };
 
   const approveMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/admin/reviews/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "PUBLISHED" }),
-      });
-      return throwOnError(res);
-    },
+    mutationFn: (id: number) =>
+      unwrap<unknown>(
+        axios.patch(`/api/admin/reviews/${id}`, { status: "PUBLISHED" })
+      ),
     onSuccess: invalidate,
     onError: (error: Error) => setServerError(error.message),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/admin/reviews/${id}`, { method: "DELETE" });
-      return throwOnError(res);
-    },
+    mutationFn: (id: number) =>
+      unwrap<unknown>(axios.delete(`/api/admin/reviews/${id}`)),
     onSuccess: invalidate,
     onError: (error: Error) => setServerError(error.message),
   });

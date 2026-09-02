@@ -5,6 +5,7 @@ import { z } from "zod";
 import { signUpSchema } from "@/schemas/signup.schema";
 import { ApiResponse, ApiError } from "@/helper/apiResponse";
 import { signSessionToken, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from "@/lib/jwt";
+import { hashPassword } from "@/helper/hashPassword";
 
 const SALT_ROUNDS = Number(process.env.BCRYPT_SALT) || 10;
 
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
             return NextResponse.json(apiError, { status: apiError.statusCode });
         }
 
-        const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
+        const password_hash = await hashPassword(password);
 
         const user = await prisma.user.create({
             data: {

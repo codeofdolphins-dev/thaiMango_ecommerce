@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { Pencil, Plus, Power, Ticket, Trash2, X } from "lucide-react";
 import type { z } from "zod";
 import { Card, PageHeader, StatusBadge } from "@/components/admin/ui";
+import { unwrap } from "@/lib/http";
 import { couponSchema, CouponValues } from "@/schemas/coupon.schema";
 
 type CouponFormInput = z.input<typeof couponSchema>;
@@ -27,14 +29,6 @@ const inputCls =
 const labelCls =
   "block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1.5";
 
-async function throwOnError(res: Response) {
-  const body = await res.json();
-  if (!res.ok) {
-    throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-  }
-  return body.data;
-}
-
 const couponStatus = (c: AdminCoupon) =>
   !c.is_active || new Date(c.expires_at) < new Date() ? "Expired" : "Active";
 
@@ -46,10 +40,7 @@ export default function CouponsPage() {
 
   const couponsQuery = useQuery({
     queryKey: ["admin-coupons"],
-    queryFn: async (): Promise<AdminCoupon[]> => {
-      const res = await fetch("/api/admin/coupons");
-      return throwOnError(res);
-    },
+    queryFn: () => unwrap<AdminCoupon[]>(axios.get("/api/admin/coupons")),
   });
 
   const {
@@ -66,17 +57,12 @@ export default function CouponsPage() {
   };
 
   const saveMutation = useMutation({
-    mutationFn: async (values: CouponValues) => {
-      const res = await fetch(
-        editingId === null ? "/api/admin/coupons" : `/api/admin/coupons/${editingId}`,
-        {
-          method: editingId === null ? "POST" : "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
-        }
-      );
-      return throwOnError(res);
-    },
+    mutationFn: (values: CouponValues) =>
+      unwrap<unknown>(
+        editingId === null
+          ? axios.post("/api/admin/coupons", values)
+          : axios.patch(`/api/admin/coupons/${editingId}`, values)
+      ),
     onSuccess: () => {
       invalidate();
       closeForm();
@@ -85,23 +71,17 @@ export default function CouponsPage() {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: async (c: AdminCoupon) => {
-      const res = await fetch(`/api/admin/coupons/${c.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: !c.is_active }),
-      });
-      return throwOnError(res);
-    },
+    mutationFn: (c: AdminCoupon) =>
+      unwrap<unknown>(
+        axios.patch(`/api/admin/coupons/${c.id}`, { is_active: !c.is_active })
+      ),
     onSuccess: invalidate,
     onError: (error: Error) => setServerError(error.message),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/admin/coupons/${id}`, { method: "DELETE" });
-      return throwOnError(res);
-    },
+    mutationFn: (id: number) =>
+      unwrap<unknown>(axios.delete(`/api/admin/coupons/${id}`)),
     onSuccess: invalidate,
     onError: (error: Error) => setServerError(error.message),
   });

@@ -3,6 +3,8 @@
 import { Bell, PanelLeft, Search } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { unwrap } from "@/lib/http";
 import AdminSidebar from "./AdminSidebar";
 
 export default function AdminShell({
@@ -16,9 +18,13 @@ export default function AdminShell({
   const meQuery = useQuery({
     queryKey: ["me"],
     queryFn: async (): Promise<{ name: string; email: string; role: string } | null> => {
-      const res = await fetch("/api/me");
-      if (!res.ok) return null;
-      return (await res.json()).data;
+      try {
+        return await unwrap<{ name: string; email: string; role: string }>(
+          axios.get("/api/me")
+        );
+      } catch {
+        return null;
+      }
     },
     staleTime: Infinity,
   });

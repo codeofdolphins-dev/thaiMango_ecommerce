@@ -4,10 +4,12 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { ChevronRight, Eye } from "lucide-react";
 import { useStore } from "@/components/public/store";
 import { defaultVariant, minPrice } from "@/lib/variants";
 import { productImage } from "@/lib/images";
+import { unwrap } from "@/lib/http";
 
 interface ApiVariant {
   label: string;
@@ -22,23 +24,27 @@ interface ApiProduct {
   id: string;
   slug: string;
   name_en: string;
+  name_th: string;
   description_en: string;
+  description_th: string;
   images: string[];
   highlights: string[];
   tags: string[];
-  category: { slug: string; name_en: string };
+  category: { slug: string; name_en: string; name_th: string };
   productVariant: ApiVariant[];
 }
 
 interface ApiCategory {
   slug: string;
   name_en: string;
+  name_th: string;
 }
 
 const BADGE_CLASS = "w-fit bg-charcoal text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm";
 const TAGS_CLASS = "w-fit bg-gold text-white text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm";
 
 type PriceFormatter = (value: number) => string;
+type Localizer = (en: string, th?: string | null) => string;
 
 
 /* Reads ?category= inside its own Suspense boundary so the catalog itself
@@ -76,7 +82,11 @@ interface ViewProduct {
   variantCount: number;
 }
 
-function mapProduct(p: ApiProduct, formatPrice: PriceFormatter): ViewProduct {
+function mapProduct(
+  p: ApiProduct,
+  formatPrice: PriceFormatter,
+  localized: Localizer
+): ViewProduct {
   /* Cards show the default variant; "from <price>" when cheaper sizes exist. */
   const variant = defaultVariant(p.productVariant);
   const lowest = minPrice(p.productVariant);
@@ -87,14 +97,14 @@ function mapProduct(p: ApiProduct, formatPrice: PriceFormatter): ViewProduct {
     id: p.id,
     slug: p.slug,
     categorySlug: p.category.slug,
-    categoryName: p.category.name_en,
+    categoryName: localized(p.category.name_en, p.category.name_th),
     image: productImage(p.images),
-    alt: p.name_en,
+    alt: localized(p.name_en, p.name_th),
     badges: p.highlights.slice(0, 2).join(", "),
     tags: p.tags.slice(0, 2).join(", "),
     weight: variant ? `${variant.label}` : "",
-    name: p.name_en,
-    desc: p.description_en,
+    name: localized(p.name_en, p.name_th),
+    desc: localized(p.description_en, p.description_th),
     price: hasCheaper ? lowest : price,
     priceDisplay: !variant
       ? "—"
@@ -110,36 +120,35 @@ function mapProduct(p: ApiProduct, formatPrice: PriceFormatter): ViewProduct {
 }
 
 function ShopPageContent() {
-  const { addToCart, openQuickView, formatPrice } = useStore();
+  const { addToCart, openQuickView, formatPrice, localized } = useStore();
   const [activeFilter, setActiveFilter] = useState("all");
 
   const categoriesQuery = useQuery({
     queryKey: ["categories"],
-    queryFn: async (): Promise<ApiCategory[]> => {
-      const res = await fetch("/api/categories");
-      if (!res.ok) throw new Error("Failed to load categories");
-      const body = await res.json();
-      return body.data;
-    },
+    queryFn: async (): Promise<ApiCategory[]> =>
+      unwrap<ApiCategory[]>(axios.get("/api/categories")),
   });
 
   const productsQuery = useQuery({
     queryKey: ["products"],
     queryFn: async (): Promise<ApiProduct[]> => {
-      const res = await fetch("/api/products");
-      if (!res.ok) throw new Error("Failed to load products");
-      const body = await res.json();
-      return body.data.products;
+      const data = await unwrap<{ products: ApiProduct[] }>(
+        axios.get("/api/products")
+      );
+      return data.products;
     },
   });
 
   const filters = [
     { value: "all", label: "All Items" },
-    ...(categoriesQuery.data ?? []).map((c) => ({ value: c.slug, label: c.name_en })),
+    ...(categoriesQuery.data ?? []).map((c) => ({
+      value: c.slug,
+      label: localized(c.name_en, c.name_th),
+    })),
   ];
 
   const allProducts = (productsQuery.data ?? []).map((p) =>
-    mapProduct(p, formatPrice)
+    mapProduct(p, formatPrice, localized)
   );
   const visibleProducts = allProducts.filter(
     (p) => activeFilter === "all" || p.categorySlug === activeFilter
@@ -242,10 +251,8 @@ function ShopPageContent() {
                       className="product-image w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                     />
                     <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-                      {/* {product.badges.map((badge) => (
-                  ))} */}
-                      <span className={BADGE_CLASS}>{product.badges}</span>
-                      <span className={TAGS_CLASS}>{product.tags}</span>
+                      {product.badges.length > 0 && <span className={BADGE_CLASS}>{product.badges}</span>}
+                      {product.tags.length > 0 && <span className={BADGE_CLASS}>{product.tags}</span>}
                     </div>
                     <button
                       type="button"

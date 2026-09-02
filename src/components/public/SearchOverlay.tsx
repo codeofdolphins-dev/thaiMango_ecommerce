@@ -4,16 +4,19 @@ import Link from "next/link";
 import { ArrowRight, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { useStore } from "./store";
 import { minPrice } from "@/lib/variants";
 import { productImage } from "@/lib/images";
+import { unwrap } from "@/lib/http";
 
 interface SearchProduct {
   id: string;
   slug: string;
   name_en: string;
+  name_th: string;
   images: string[];
-  category: { slug: string; name_en: string };
+  category: { slug: string; name_en: string; name_th: string };
   productVariant: { price: string; is_default: boolean; stock: number }[];
 }
 
@@ -21,6 +24,7 @@ interface PublicCategory {
   id: number;
   slug: string;
   name_en: string;
+  name_th: string;
 }
 
 /* Real content pages — static by nature, not catalog data */
@@ -32,7 +36,7 @@ const CONTENT_PAGES = [
 ];
 
 export default function SearchOverlay() {
-  const { searchOpen, closeSearch, formatPrice } = useStore();
+  const { searchOpen, closeSearch, formatPrice, localized } = useStore();
   const [query, setQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,23 +57,17 @@ export default function SearchOverlay() {
     queryKey: ["search-products", debouncedQ],
     enabled: debouncedQ.length > 0,
     queryFn: async (): Promise<SearchProduct[]> => {
-      const res = await fetch(
-        `/api/products?search=${encodeURIComponent(debouncedQ)}&limit=6`
+      const data = await unwrap<{ products: SearchProduct[] }>(
+        axios.get(`/api/products?search=${encodeURIComponent(debouncedQ)}&limit=6`)
       );
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || "Search failed");
-      return body.data.products;
+      return data.products;
     },
   });
 
   const categoriesQuery = useQuery({
     queryKey: ["categories"],
-    queryFn: async (): Promise<PublicCategory[]> => {
-      const res = await fetch("/api/categories");
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || "Failed to load categories");
-      return body.data;
-    },
+    queryFn: async (): Promise<PublicCategory[]> =>
+      unwrap<PublicCategory[]>(axios.get("/api/categories")),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -151,15 +149,15 @@ export default function SearchOverlay() {
                   >
                     <img
                       src={productImage(p.images)}
-                      alt={p.name_en}
+                      alt={localized(p.name_en, p.name_th)}
                       className="w-12 h-12 object-cover rounded-xl bg-cream shrink-0"
                     />
                     <div className="min-w-0 flex-1">
                       <span className="text-[9px] uppercase tracking-wider text-accent font-bold block">
-                        {p.category.name_en}
+                        {localized(p.category.name_en, p.category.name_th)}
                       </span>
                       <h5 className="text-xs font-semibold text-charcoal group-hover:text-accent transition truncate">
-                        {p.name_en}
+                        {localized(p.name_en, p.name_th)}
                       </h5>
                       {minPrice(p.productVariant) !== null && (
                         <span className="text-[11px] text-muted font-medium">
@@ -208,7 +206,7 @@ export default function SearchOverlay() {
                   className="px-5 py-2.5 border border-cream rounded-full text-xs hover:border-accent hover:text-accent transition bg-white/50"
                   onClick={closeSearch}
                 >
-                  {c.name_en}
+                  {localized(c.name_en, c.name_th)}
                 </Link>
               ))}
               <Link

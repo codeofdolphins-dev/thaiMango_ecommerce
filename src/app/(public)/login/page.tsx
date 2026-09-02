@@ -7,9 +7,11 @@ import { ArrowRight, Eye, EyeOff, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
 import { z } from "zod";
 import { useStore } from "@/components/public/store";
 import { loginSchema } from "@/schemas/login.schema";
+import { unwrap } from "@/lib/http";
 
 type LoginValues = z.infer<typeof loginSchema>;
 
@@ -28,19 +30,8 @@ export default function LoginPage() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: async (values: LoginValues) => {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        throw new Error(
-          body.errors?.[0] || body.message || "Something went wrong. Please try again."
-        );
-      }
-      return body.data as {
+    mutationFn: async (values: LoginValues) =>
+      unwrap<{
         id: string;
         name: string;
         email: string;
@@ -48,8 +39,7 @@ export default function LoginPage() {
         role: string;
         flavor_preference: string[];
         created_at: string;
-      };
-    },
+      }>(axios.post("/api/login", values)),
     onSuccess: (data) => {
       const [firstName, ...rest] = data.name.split(" ");
       setUser({
@@ -77,11 +67,6 @@ export default function LoginPage() {
 
   const handleSocialLogin = (provider: "Google" | "Facebook") => {
     showToast(`${provider} sign-in isn't available yet.`);
-  };
-
-  const handleForgotPassword = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    showToast("Password reset isn't available yet.");
   };
 
   return (
@@ -179,14 +164,13 @@ export default function LoginPage() {
                 <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted">
                   Password
                 </label>
-                <a
-                  href="#"
+                <Link
+                  href="/forgot-password"
                   id="forgot-password-link"
-                  onClick={handleForgotPassword}
                   className="text-[11px] text-muted hover:text-accent transition"
                 >
                   Forgot Password?
-                </a>
+                </Link>
               </div>
               <div className="relative">
                 <input

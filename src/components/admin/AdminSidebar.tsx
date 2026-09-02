@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import axios from "axios";
 import {
   ExternalLink,
   FileText,
@@ -148,7 +149,7 @@ export default function AdminSidebar({
             title={collapsed ? "Sign Out" : undefined}
             onClick={async () => {
               try {
-                await fetch("/api/logout", { method: "POST" });
+                await axios.post("/api/logout");
               } catch {}
               window.location.href = "/login";
             }}

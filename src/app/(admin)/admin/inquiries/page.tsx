@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { Check, Mail, Trash2 } from "lucide-react";
 import { Card, PageHeader, StatusBadge } from "@/components/admin/ui";
+import { unwrap } from "@/lib/http";
 
 type InquiryStatus = "NEW" | "RESOLVED";
 
@@ -26,14 +28,6 @@ const STATUS_LABEL: Record<InquiryStatus, string> = {
 
 const TABS: (InquiryStatus | "ALL")[] = ["ALL", "NEW", "RESOLVED"];
 
-async function throwOnError(res: Response) {
-  const body = await res.json();
-  if (!res.ok) {
-    throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-  }
-  return body.data;
-}
-
 export default function InquiriesPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<InquiryStatus | "ALL">("ALL");
@@ -41,33 +35,22 @@ export default function InquiriesPage() {
 
   const inquiriesQuery = useQuery({
     queryKey: ["admin-inquiries"],
-    queryFn: async (): Promise<AdminInquiry[]> => {
-      const res = await fetch("/api/contact");
-      return throwOnError(res);
-    },
+    queryFn: () => unwrap<AdminInquiry[]>(axios.get("/api/contact")),
   });
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["admin-inquiries"] });
 
   const resolveMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/contact/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "RESOLVED" }),
-      });
-      return throwOnError(res);
-    },
+    mutationFn: (id: number) =>
+      unwrap<unknown>(axios.patch(`/api/contact/${id}`, { status: "RESOLVED" })),
     onSuccess: invalidate,
     onError: (error: Error) => setServerError(error.message),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/contact/${id}`, { method: "DELETE" });
-      return throwOnError(res);
-    },
+    mutationFn: (id: number) =>
+      unwrap<unknown>(axios.delete(`/api/contact/${id}`)),
     onSuccess: invalidate,
     onError: (error: Error) => setServerError(error.message),
   });

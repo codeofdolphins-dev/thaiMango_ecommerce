@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import {
   Sparkles,
   Apple,
@@ -21,6 +22,7 @@ import {
   FAQ_DEFAULTS,
   FaqCategoryId,
 } from "@/schemas/faq.schema";
+import { unwrap } from "@/lib/http";
 
 interface FaqItem {
   id: number;
@@ -120,12 +122,8 @@ export default function FaqPage() {
   /* Admin-managed FAQs; the seeded launch set fills in until the API answers. */
   const faqsQuery = useQuery({
     queryKey: ["public-faqs"],
-    queryFn: async (): Promise<FaqRow[]> => {
-      const res = await fetch("/api/faqs");
-      if (!res.ok) throw new Error("Failed to load FAQs");
-      const body = await res.json();
-      return body.data as FaqRow[];
-    },
+    queryFn: async (): Promise<FaqRow[]> =>
+      unwrap<FaqRow[]>(axios.get("/api/faqs")),
     staleTime: 5 * 60 * 1000,
   });
   const rows = faqsQuery.data ?? FALLBACK_ROWS;

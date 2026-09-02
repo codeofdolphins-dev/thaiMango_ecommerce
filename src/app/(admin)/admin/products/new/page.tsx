@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { ChevronLeft } from "lucide-react";
 import Select from "react-select";
 import { Card, PageHeader } from "@/components/admin/ui";
 import ImageUploader from "@/components/admin/ImageUploader";
 import { adminSelectStyles, SelectOption } from "@/components/admin/selectStyles";
+import { unwrap } from "@/lib/http";
 import VariantsEditor, {
   emptyVariant,
   VariantFormRow,
@@ -82,12 +84,7 @@ export default function NewProductPage() {
 
   const categoriesQuery = useQuery({
     queryKey: ["admin-categories"],
-    queryFn: async (): Promise<AdminCategory[]> => {
-      const res = await fetch("/api/admin/categories");
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || "Failed to load categories");
-      return body.data;
-    },
+    queryFn: () => unwrap<AdminCategory[]>(axios.get("/api/admin/categories")),
   });
 
   const {
@@ -138,18 +135,8 @@ export default function NewProductPage() {
   }, [nameEn, variants, setValue]);
 
   const createMutation = useMutation({
-    mutationFn: async (payload: unknown) => {
-      const res = await fetch("/api/admin/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-      }
-      return body.data;
-    },
+    mutationFn: (payload: unknown) =>
+      unwrap<unknown>(axios.post("/api/admin/products", payload)),
     onSuccess: () => {
       router.push("/admin/products");
     },

@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import axios from "axios";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { useStore } from "@/components/public/store";
 import PhoneField from "@/components/common/PhoneField";
 import { DEFAULT_SETTINGS } from "@/schemas/settings.schema";
 import { INQUIRY_TOPICS } from "@/schemas/contact.schema";
+import { unwrap } from "@/lib/http";
 
 export default function ContactPage() {
   const { showToast, settings } = useStore();
@@ -19,22 +21,16 @@ export default function ContactPage() {
     const fields = new FormData(form);
     setSubmitting(true);
     try {
-      const res = await fetch("/api/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await unwrap(
+        axios.post("/api/contact", {
           first_name: fields.get("first_name"),
           last_name: fields.get("last_name"),
           email: fields.get("email"),
           phone: contactPhone,
           topic: fields.get("topic"),
           message: fields.get("message"),
-        }),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-      }
+        })
+      );
       showToast("Thank you! Your request has been received.");
       form.reset();
       setContactPhone("");

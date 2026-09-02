@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import {
+  ChevronDown,
   Droplet,
   Heart,
   LayoutDashboard,
@@ -22,6 +24,8 @@ import { defaultVariant } from "@/lib/variants";
 import { productImage } from "@/lib/images";
 import { tipsForPreference } from "@/lib/flavor-tips";
 import PhoneField from "@/components/common/PhoneField";
+import PasswordInput from "@/components/common/PasswordInput";
+import { unwrap } from "@/lib/http";
 
 type TabKey =
   | "overview"
@@ -70,9 +74,11 @@ interface MyAddress {
 interface ShopProduct {
   slug: string;
   name_en: string;
+  name_th: string;
   description_en: string;
+  description_th: string;
   images: string[];
-  category?: { slug: string; name_en: string } | null;
+  category?: { slug: string; name_en: string; name_th: string } | null;
   productVariant: { label: string; price: string; is_default: boolean; stock: number }[];
 }
 
@@ -105,14 +111,6 @@ const inputCls =
 const labelCls =
   "block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1";
 
-async function throwOnError(res: Response) {
-  const body = await res.json();
-  if (!res.ok) {
-    throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-  }
-  return body.data;
-}
-
 export default function DashboardPage() {
   const {
     user,
@@ -124,12 +122,23 @@ export default function DashboardPage() {
     showToast,
     authLoading,
     formatPrice,
+    localized,
   } = useStore();
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  /* Which order cards are expanded — each accordion toggles independently. */
+  const [openOrders, setOpenOrders] = useState<Set<string>>(new Set());
   const [addressFormOpen, setAddressFormOpen] = useState(false);
+
+  const toggleOrder = (id: string) =>
+    setOpenOrders((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [addressDraft, setAddressDraft] = useState({
     line1: "",
     city: "",
@@ -141,6 +150,11 @@ export default function DashboardPage() {
     l_name: "",
     email: "",
     ph_no: "",
+  });
+  const [passwordDraft, setPasswordDraft] = useState({
+    old_password: "",
+    new_password: "",
+    confirm_password: "",
   });
 
   const loggedIn = Boolean(user);
@@ -163,26 +177,23 @@ export default function DashboardPage() {
   const ordersQuery = useQuery({
     queryKey: ["my-orders"],
     enabled: loggedIn,
-    queryFn: async (): Promise<MyOrder[]> => {
-      const res = await fetch("/api/orders");
-      return throwOnError(res);
-    },
+    queryFn: async (): Promise<MyOrder[]> =>
+      unwrap<MyOrder[]>(axios.get("/api/orders")),
   });
 
   const addressesQuery = useQuery({
     queryKey: ["my-addresses"],
     enabled: loggedIn,
-    queryFn: async (): Promise<MyAddress[]> => {
-      const res = await fetch("/api/addresses");
-      return throwOnError(res);
-    },
+    queryFn: async (): Promise<MyAddress[]> =>
+      unwrap<MyAddress[]>(axios.get("/api/addresses")),
   });
 
   const recommendedQuery = useQuery({
     queryKey: ["products", "recommended"],
     queryFn: async (): Promise<ShopProduct | null> => {
-      const res = await fetch("/api/products?limit=1");
-      const data = await throwOnError(res);
+      const data = await unwrap<{ products: ShopProduct[] }>(
+        axios.get("/api/products?limit=1")
+      );
       return data.products[0] ?? null;
     },
   });
@@ -193,21 +204,16 @@ export default function DashboardPage() {
     queryKey: ["products", "catalog"],
     enabled: wishlist.length > 0,
     queryFn: async (): Promise<ShopProduct[]> => {
-      const res = await fetch("/api/products?limit=100");
-      const data = await throwOnError(res);
+      const data = await unwrap<{ products: ShopProduct[] }>(
+        axios.get("/api/products?limit=100")
+      );
       return data.products;
     },
   });
 
   const addAddressMutation = useMutation({
-    mutationFn: async (values: typeof addressDraft) => {
-      const res = await fetch("/api/addresses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      return throwOnError(res);
-    },
+    mutationFn: async (values: typeof addressDraft) =>
+      unwrap(axios.post("/api/addresses", values)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-addresses"] });
       setAddressFormOpen(false);
@@ -218,10 +224,8 @@ export default function DashboardPage() {
   });
 
   const setDefaultAddressMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/addresses/${id}`, { method: "PATCH" });
-      return throwOnError(res);
-    },
+    mutationFn: async (id: number) =>
+      unwrap(axios.patch(`/api/addresses/${id}`)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-addresses"] });
       showToast("Default address updated");
@@ -230,10 +234,8 @@ export default function DashboardPage() {
   });
 
   const deleteAddressMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/addresses/${id}`, { method: "DELETE" });
-      return throwOnError(res);
-    },
+    mutationFn: async (id: number) =>
+      unwrap(axios.delete(`/api/addresses/${id}`)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-addresses"] });
       showToast("Address removed");
@@ -242,14 +244,10 @@ export default function DashboardPage() {
   });
 
   const profileMutation = useMutation({
-    mutationFn: async (values: typeof profileDraft) => {
-      const res = await fetch("/api/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      return throwOnError(res);
-    },
+    mutationFn: async (values: typeof profileDraft) =>
+      unwrap<{ name: string; email: string; phone: string }>(
+        axios.patch("/api/me", values)
+      ),
     onSuccess: (data: { name: string; email: string; phone: string }) => {
       const [firstName, ...rest] = data.name.split(" ");
       setUser({
@@ -263,6 +261,20 @@ export default function DashboardPage() {
       });
       queryClient.invalidateQueries({ queryKey: ["me"] });
       showToast("Profile updated successfully");
+    },
+    onError: (error: Error) => showToast(error.message),
+  });
+
+  const passwordMutation = useMutation({
+    mutationFn: async (values: typeof passwordDraft) =>
+      unwrap(axios.patch("/api/reset-password", values)),
+    onSuccess: () => {
+      setPasswordDraft({
+        old_password: "",
+        new_password: "",
+        confirm_password: "",
+      });
+      showToast("Password updated successfully");
     },
     onError: (error: Error) => showToast(error.message),
   });
@@ -287,10 +299,9 @@ export default function DashboardPage() {
   const recommended = recommendedQuery.data;
 
   const tabBtnClass = (tab: TabKey) =>
-    `dash-tab-btn w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-xs font-semibold tracking-wide transition text-left ${
-      activeTab === tab
-        ? "active bg-charcoal text-white"
-        : "text-charcoal hover:bg-cream/40"
+    `dash-tab-btn w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-xs font-semibold tracking-wide transition text-left ${activeTab === tab
+      ? "active bg-charcoal text-white"
+      : "text-charcoal hover:bg-cream/40"
     }`;
 
   const tabIconClass = (tab: TabKey) =>
@@ -309,7 +320,7 @@ export default function DashboardPage() {
   return (
     <main className="flex-1 py-10 md:py-16 px-4 sm:px-6 md:px-12 max-w-screen-2xl mx-auto w-full">
       {/* Welcome Header Banner */}
-      <div className="p-8 md:p-10 rounded-[32px] bg-gradient-to-r from-[#52091E] via-[#640C26] to-[#3D0514] text-white shadow-xl mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
+      <div className="p-8 md:p-10 rounded-4xl bg-linear-to-r from-burgundy via-beetroot to-[#3D0514] text-white shadow-xl mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
             <span className="px-3 py-1 rounded-full bg-gold/20 text-gold border border-gold/40 text-[10px] uppercase tracking-widest font-bold">
@@ -357,7 +368,7 @@ export default function DashboardPage() {
         {/* Left Navigation Sidebar (3 cols) */}
         <aside className="lg:col-span-3 bg-white rounded-[28px] border border-cream shadow-sm p-4 sticky top-28">
           <div className="flex items-center gap-3.5 p-3.5 border-b border-cream/70 mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-[#52091E] text-gold flex items-center justify-center font-serif text-xl font-bold shadow-sm user-avatar-initial">
+            <div className="w-12 h-12 rounded-2xl bg-burgundy text-gold flex items-center justify-center font-serif text-xl font-bold shadow-sm user-avatar-initial">
               {(activeUser.firstName || "M")[0].toUpperCase()}
             </div>
             <div className="min-w-0">
@@ -434,7 +445,7 @@ export default function DashboardPage() {
         </aside>
 
         {/* Right Tab Content (9 cols) */}
-        <div className="lg:col-span-9 bg-white rounded-[32px] border border-cream shadow-sm p-6 sm:p-8 md:p-10 min-h-[550px]">
+        <div className="lg:col-span-9 bg-white rounded-4xl border border-cream shadow-sm p-6 sm:p-8 md:p-10 min-h-137.5]">
           {/* 1. OVERVIEW TAB */}
           <div className={panelClass("overview", "space-y-8")}>
             <div>
@@ -523,23 +534,20 @@ export default function DashboardPage() {
                       return (
                         <div
                           key={step}
-                          className={`flex flex-col items-center ${
-                            !done && !active ? "opacity-40" : ""
-                          }`}
+                          className={`flex flex-col items-center ${!done && !active ? "opacity-40" : ""
+                            }`}
                         >
                           <span
-                            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs mb-1 font-bold ${
-                              done || active
-                                ? "bg-accent text-white"
-                                : "bg-cream border border-charcoal/30"
-                            } ${active ? "animate-pulse" : ""}`}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs mb-1 font-bold ${done || active
+                              ? "bg-accent text-white"
+                              : "bg-cream border border-charcoal/30"
+                              } ${active ? "animate-pulse" : ""}`}
                           >
                             {done ? "✓" : stepNo}
                           </span>
                           <span
-                            className={`text-[10px] font-semibold ${
-                              active ? "text-accent font-bold" : "text-charcoal"
-                            }`}
+                            className={`text-[10px] font-semibold ${active ? "text-accent font-bold" : "text-charcoal"
+                              }`}
                           >
                             {step}
                           </span>
@@ -560,7 +568,7 @@ export default function DashboardPage() {
                 <div className="p-6 rounded-3xl bg-ivory border border-cream flex flex-col sm:flex-row items-center gap-6">
                   <img
                     src={productImage(recommended.images)}
-                    alt={recommended.name_en}
+                    alt={localized(recommended.name_en, recommended.name_th)}
                     className="w-24 h-24 object-cover rounded-2xl bg-white shadow-sm shrink-0"
                   />
                   <div className="flex-1 text-center sm:text-left">
@@ -568,17 +576,17 @@ export default function DashboardPage() {
                       Fresh From The Orchard
                     </span>
                     <h4 className="font-serif text-xl text-charcoal font-semibold mt-0.5">
-                      {recommended.name_en}
+                      {localized(recommended.name_en, recommended.name_th)}
                     </h4>
                     <p className="text-xs text-muted mt-1 max-w-md line-clamp-2">
-                      {recommended.description_en}
+                      {localized(recommended.description_en, recommended.description_th)}
                     </p>
                   </div>
                   <button
                     onClick={() =>
                       addToCart({
                         slug: recommended.slug,
-                        name: recommended.name_en,
+                        name: localized(recommended.name_en, recommended.name_th),
                         price: Number(
                           defaultVariant(recommended.productVariant)?.price ?? 0
                         ),
@@ -631,87 +639,113 @@ export default function DashboardPage() {
                   </Link>
                 </div>
               ) : (
-                orders.map((o) => (
-                  <div
-                    key={o.id}
-                    className="p-6 rounded-3xl bg-ivory border border-cream shadow-sm"
-                  >
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-cream gap-3">
-                      <div>
-                        <span className="font-serif text-xl font-bold text-charcoal">
-                          #TM-{String(o.order_no).padStart(5, "0")}
-                        </span>
-                        <span className="text-xs text-muted ml-3">
-                          Placed on{" "}
-                          {new Date(o.created_at).toLocaleDateString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </span>
-                      </div>
-                      <span
-                        className={`px-3.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${STATUS_PILL[o.status]}`}
+                orders.map((o) => {
+                  const isOpen = openOrders.has(o.id);
+                  return (
+                    <div
+                      key={o.id}
+                      className="rounded-3xl bg-ivory border border-cream shadow-sm overflow-hidden"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleOrder(o.id)}
+                        aria-expanded={isOpen}
+                        className="w-full p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-left hover:bg-cream/40 transition"
                       >
-                        {ORDER_STATUS_LABEL[o.status]}
-                      </span>
-                    </div>
-                    {o.items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
-                      >
-                        <div className="flex items-center gap-4">
-                          <img
-                            src={productImage(item.product?.images)}
-                            alt={item.name}
-                            className="w-16 h-16 rounded-xl object-cover bg-white"
+                        <div>
+                          <span className="font-serif text-xl font-bold text-charcoal">
+                            #TM-{String(o.order_no).padStart(5, "0")}
+                          </span>
+                          <span className="text-xs text-muted ml-3">
+                            Placed on{" "}
+                            {new Date(o.created_at).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-charcoal">
+                            {formatPrice(Number(o.total))}
+                          </span>
+                          <span
+                            className={`px-3.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${STATUS_PILL[o.status]}`}
+                          >
+                            {ORDER_STATUS_LABEL[o.status]}
+                          </span>
+                          <ChevronDown
+                            className={`w-4 h-4 text-muted transition-transform duration-300 ${isOpen ? "rotate-180" : ""
+                              }`}
                           />
-                          <div>
-                            <h4 className="text-xs font-bold text-charcoal">
-                              {item.name}
-                            </h4>
-                            <span className="text-[11px] text-muted">
-                              {item.variant_label
-                                ? `${item.variant_label} · Qty: ${item.quantity}`
-                                : `Qty: ${item.quantity}`}
-                            </span>
-                            <span className="text-xs font-semibold text-accent block mt-1">
-                              {formatPrice(Number(item.price))} ({o.payment === "COD" ? "COD" : "Prepaid"})
-                            </span>
+                        </div>
+                      </button>
+                      <div
+                        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                          }`}
+                      >
+                        <div className="overflow-hidden min-h-0">
+                          <div className="px-6 pb-6 border-t border-cream">
+                            {o.items.map((item) => (
+                              <div
+                                key={item.id}
+                                className="py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+                              >
+                                <div className="flex items-center gap-4">
+                                  <img
+                                    src={productImage(item.product?.images)}
+                                    alt={item.name}
+                                    className="w-16 h-16 rounded-xl object-cover bg-white"
+                                  />
+                                  <div>
+                                    <h4 className="text-xs font-bold text-charcoal">
+                                      {item.name}
+                                    </h4>
+                                    <span className="text-[11px] text-muted">
+                                      {item.variant_label
+                                        ? `${item.variant_label} · Qty: ${item.quantity}`
+                                        : `Qty: ${item.quantity}`}
+                                    </span>
+                                    <span className="text-xs font-semibold text-accent block mt-1">
+                                      {formatPrice(Number(item.price))} ({o.payment === "COD" ? "COD" : "Prepaid"})
+                                    </span>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() =>
+                                    addToCart({
+                                      slug: item.product?.slug,
+                                      name: item.name,
+                                      price: Number(item.price),
+                                      image: productImage(item.product?.images),
+                                    })
+                                  }
+                                  className="add-to-cart px-4 py-2 bg-charcoal text-white text-xs uppercase tracking-wider font-bold rounded-full hover:bg-accent transition"
+                                >
+                                  Reorder
+                                </button>
+                              </div>
+                            ))}
+                            <div className="pt-3 border-t border-cream flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                              <div className="text-[11px] text-muted leading-relaxed">
+                                <span className="uppercase tracking-wider font-semibold block text-charcoal mb-0.5">
+                                  Delivered to
+                                </span>
+                                {o.ship_name}
+                                <br />
+                                {o.ship_line1}, {o.ship_city}, {o.ship_state} -{" "}
+                                {o.ship_pincode}
+                              </div>
+                              <span className="text-sm font-bold text-charcoal shrink-0">
+                                Total: {formatPrice(Number(o.total))}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <button
-                          onClick={() =>
-                            addToCart({
-                              slug: item.product?.slug,
-                              name: item.name,
-                              price: Number(item.price),
-                              image: productImage(item.product?.images),
-                            })
-                          }
-                          className="add-to-cart px-4 py-2 bg-charcoal text-white text-xs uppercase tracking-wider font-bold rounded-full hover:bg-accent transition"
-                        >
-                          Reorder
-                        </button>
                       </div>
-                    ))}
-                    <div className="pt-3 border-t border-cream flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-                      <div className="text-[11px] text-muted leading-relaxed">
-                        <span className="uppercase tracking-wider font-semibold block text-charcoal mb-0.5">
-                          Delivered to
-                        </span>
-                        {o.ship_name}
-                        <br />
-                        {o.ship_line1}, {o.ship_city}, {o.ship_state} -{" "}
-                        {o.ship_pincode}
-                      </div>
-                      <span className="text-sm font-bold text-charcoal shrink-0">
-                        Total: {formatPrice(Number(o.total))}
-                      </span>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -769,14 +803,21 @@ export default function DashboardPage() {
                         {product ? (
                           <img
                             src={productImage(product.images)}
-                            alt={product.name_en}
+                            alt={localized(product.name_en, product.name_th)}
                             className="w-full h-full object-cover"
                           />
                         ) : (
                           <Heart className="w-10 h-10 text-rose-300 fill-rose-200" />
                         )}
                         <button
-                          onClick={() => toggleWishlist(slug, product?.name_en)}
+                          onClick={() =>
+                            toggleWishlist(
+                              slug,
+                              product
+                                ? localized(product.name_en, product.name_th)
+                                : undefined
+                            )
+                          }
                           className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 text-rose-600 hover:bg-rose-600 hover:text-white flex items-center justify-center transition shadow-sm"
                           title="Remove"
                         >
@@ -785,11 +826,16 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <span className="text-[9px] uppercase tracking-wider text-accent font-bold">
-                          {product?.category?.name_en ?? "Thai Mango"}
+                          {product?.category
+                            ? localized(product.category.name_en, product.category.name_th)
+                            : "Thai Mango"}
                         </span>
                         <h4 className="font-serif text-base text-charcoal font-semibold mt-1 line-clamp-1">
-                          {product?.name_en ??
-                            (catalogQuery.isPending ? "Loading…" : slug)}
+                          {product
+                            ? localized(product.name_en, product.name_th)
+                            : catalogQuery.isPending
+                              ? "Loading…"
+                              : slug}
                         </h4>
                         {variant && (
                           <span className="block text-sm font-semibold text-charcoal mb-3 mt-0.5">
@@ -921,11 +967,10 @@ export default function DashboardPage() {
                 addresses.map((addr) => (
                   <div
                     key={addr.id}
-                    className={`p-6 rounded-3xl shadow-sm relative ${
-                      addr.is_default
-                        ? "bg-ivory border-2 border-accent"
-                        : "bg-white border border-cream"
-                    }`}
+                    className={`p-6 rounded-3xl shadow-sm relative ${addr.is_default
+                      ? "bg-ivory border-2 border-accent"
+                      : "bg-white border border-cream"
+                      }`}
                   >
                     {addr.is_default && (
                       <span className="absolute top-5 right-5 px-3 py-0.5 rounded-full bg-accent text-white text-[9px] uppercase font-bold tracking-widest">
@@ -1135,6 +1180,94 @@ export default function DashboardPage() {
                 </button>
               </div>
             </form>
+
+            {/* Change Password */}
+            <div className="pt-8 border-t border-cream">
+              <span className="text-xs uppercase tracking-widest text-accent font-bold block mb-1">
+                Security
+              </span>
+              <h3 className="font-serif text-xl md:text-2xl text-charcoal mb-5">
+                Change Password
+              </h3>
+              <form
+                className="space-y-5 max-w-xl"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (
+                    passwordDraft.new_password !== passwordDraft.confirm_password
+                  ) {
+                    showToast("New passwords do not match");
+                    return;
+                  }
+                  passwordMutation.mutate(passwordDraft);
+                }}
+              >
+                <div>
+                  <label className={labelCls}>Current Password</label>
+                  <PasswordInput
+                    required
+                    autoComplete="current-password"
+                    value={passwordDraft.old_password}
+                    onChange={(e) =>
+                      setPasswordDraft((d) => ({
+                        ...d,
+                        old_password: e.target.value,
+                      }))
+                    }
+                    className={inputCls}
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>New Password</label>
+                    <PasswordInput
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                      value={passwordDraft.new_password}
+                      onChange={(e) =>
+                        setPasswordDraft((d) => ({
+                          ...d,
+                          new_password: e.target.value,
+                        }))
+                      }
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Confirm New Password</label>
+                    <PasswordInput
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                      value={passwordDraft.confirm_password}
+                      onChange={(e) =>
+                        setPasswordDraft((d) => ({
+                          ...d,
+                          confirm_password: e.target.value,
+                        }))
+                      }
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted">
+                  Minimum 8 characters. You&apos;ll stay signed in after the
+                  change.
+                </p>
+                <div className="pt-4 border-t border-cream">
+                  <button
+                    type="submit"
+                    disabled={passwordMutation.isPending}
+                    className="px-8 py-3.5 bg-charcoal text-white rounded-full text-xs uppercase tracking-widest font-bold hover:bg-accent transition shadow-sm disabled:opacity-60"
+                  >
+                    {passwordMutation.isPending
+                      ? "Updating…"
+                      : "Update Password"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       </div>

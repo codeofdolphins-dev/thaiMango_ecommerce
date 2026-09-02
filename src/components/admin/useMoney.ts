@@ -2,6 +2,8 @@
 
 import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { unwrap } from "@/lib/http";
 import {
   CurrencyCode,
   DEFAULT_CURRENCY,
@@ -15,10 +17,11 @@ export function useMoney() {
   const settingsQuery = useQuery({
     queryKey: ["public-settings"],
     queryFn: async (): Promise<SettingsResponse | null> => {
-      const res = await fetch("/api/settings");
-      if (!res.ok) return null;
-      const body = await res.json();
-      return body.data;
+      try {
+        return await unwrap<SettingsResponse>(axios.get("/api/settings"));
+      } catch {
+        return null;
+      }
     },
     staleTime: 5 * 60 * 1000,
   });

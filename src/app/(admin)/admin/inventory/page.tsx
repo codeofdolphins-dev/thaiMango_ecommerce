@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { AlertTriangle, Check, PackageCheck } from "lucide-react";
 import { useMoney } from "@/components/admin/useMoney";
 import { Card, PageHeader, StatusBadge } from "@/components/admin/ui";
+import { unwrap } from "@/lib/http";
 
 interface AdminVariant {
   id: number;
@@ -28,14 +30,6 @@ interface StockRow {
   productId: string;
   productName: string;
   variant: AdminVariant;
-}
-
-async function throwOnError(res: Response) {
-  const body = await res.json();
-  if (!res.ok) {
-    throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-  }
-  return body.data;
 }
 
 function StockEditor({
@@ -80,10 +74,7 @@ export default function InventoryPage() {
 
   const productsQuery = useQuery({
     queryKey: ["admin-products"],
-    queryFn: async (): Promise<AdminProduct[]> => {
-      const res = await fetch("/api/admin/products");
-      return throwOnError(res);
-    },
+    queryFn: () => unwrap<AdminProduct[]>(axios.get("/api/admin/products")),
   });
 
   /* Stock lives on the variant, so a save sends the whole variant set back with
@@ -102,12 +93,9 @@ export default function InventoryPage() {
         stock: v.id === row.variant.id ? stock : v.stock,
         is_default: v.is_default,
       }));
-      const res = await fetch(`/api/admin/products/${row.productId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ variants }),
-      });
-      return throwOnError(res);
+      return unwrap<unknown>(
+        axios.patch(`/api/admin/products/${row.productId}`, { variants })
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });

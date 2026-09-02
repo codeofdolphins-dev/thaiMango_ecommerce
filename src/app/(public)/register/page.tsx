@@ -6,10 +6,13 @@ import { ArrowRight } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import PhoneField from "@/components/common/PhoneField";
+import PasswordInput from "@/components/common/PasswordInput";
 import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
 import { z } from "zod";
 import { useStore } from "@/components/public/store";
 import { signUpSchema } from "@/schemas/signup.schema";
+import { unwrap } from "@/lib/http";
 
 type SignUpValues = z.infer<typeof signUpSchema>;
 
@@ -39,20 +42,10 @@ export default function RegisterPage() {
   const selectedSkinType = watch("choice");
 
   const signUpMutation = useMutation({
-    mutationFn: async (values: SignUpValues) => {
-      const res = await fetch("/api/sign-up", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        throw new Error(
-          body.errors?.[0] || body.message || "Something went wrong. Please try again."
-        );
-      }
-      return body.data as { id: string; name: string; email: string; phone: string };
-    },
+    mutationFn: async (values: SignUpValues) =>
+      unwrap<{ id: string; name: string; email: string; phone: string }>(
+        axios.post("/api/sign-up", values)
+      ),
     onSuccess: (data, values) => {
       setUser({
         isLoggedIn: true,
@@ -246,8 +239,7 @@ export default function RegisterPage() {
                 <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
                   Password
                 </label>
-                <input
-                  type="password"
+                <PasswordInput
                   id="reg-password"
                   placeholder="Minimum 8 characters"
                   {...register("password")}
@@ -261,8 +253,7 @@ export default function RegisterPage() {
                 <label className="block text-[11px] uppercase tracking-wider font-semibold text-muted mb-1">
                   Confirm Password
                 </label>
-                <input
-                  type="password"
+                <PasswordInput
                   id="reg-confirm-password"
                   placeholder="Re-enter password"
                   {...register("confirm_password")}

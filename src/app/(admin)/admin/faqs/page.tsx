@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { HelpCircle, Pencil, Plus, Power, Trash2, X } from "lucide-react";
 import type { z } from "zod";
 import { Card, PageHeader, StatusBadge } from "@/components/admin/ui";
+import { unwrap } from "@/lib/http";
 import {
   faqSchema,
   FaqValues,
@@ -35,14 +37,6 @@ const CATEGORY_LABEL = Object.fromEntries(
   FAQ_CATEGORIES.map((c) => [c.id, c.label])
 ) as Record<FaqCategoryId, string>;
 
-async function throwOnError(res: Response) {
-  const body = await res.json();
-  if (!res.ok) {
-    throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-  }
-  return body.data;
-}
-
 export default function FaqsPage() {
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
@@ -52,10 +46,7 @@ export default function FaqsPage() {
 
   const faqsQuery = useQuery({
     queryKey: ["admin-faqs"],
-    queryFn: async (): Promise<AdminFaq[]> => {
-      const res = await fetch("/api/faqs");
-      return throwOnError(res);
-    },
+    queryFn: () => unwrap<AdminFaq[]>(axios.get("/api/faqs")),
   });
 
   const {
@@ -73,17 +64,12 @@ export default function FaqsPage() {
   };
 
   const saveMutation = useMutation({
-    mutationFn: async (values: FaqValues) => {
-      const res = await fetch(
-        editingId === null ? "/api/faqs" : `/api/faqs/${editingId}`,
-        {
-          method: editingId === null ? "POST" : "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
-        }
-      );
-      return throwOnError(res);
-    },
+    mutationFn: (values: FaqValues) =>
+      unwrap<unknown>(
+        editingId === null
+          ? axios.post("/api/faqs", values)
+          : axios.patch(`/api/faqs/${editingId}`, values)
+      ),
     onSuccess: () => {
       invalidate();
       closeForm();
@@ -92,23 +78,16 @@ export default function FaqsPage() {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: async (faq: AdminFaq) => {
-      const res = await fetch(`/api/faqs/${faq.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: !faq.is_active }),
-      });
-      return throwOnError(res);
-    },
+    mutationFn: (faq: AdminFaq) =>
+      unwrap<unknown>(
+        axios.patch(`/api/faqs/${faq.id}`, { is_active: !faq.is_active })
+      ),
     onSuccess: invalidate,
     onError: (error: Error) => setServerError(error.message),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/faqs/${id}`, { method: "DELETE" });
-      return throwOnError(res);
-    },
+    mutationFn: (id: number) => unwrap<unknown>(axios.delete(`/api/faqs/${id}`)),
     onSuccess: invalidate,
     onError: (error: Error) => setServerError(error.message),
   });

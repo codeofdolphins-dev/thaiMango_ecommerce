@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { Search } from "lucide-react";
 import { Card, PageHeader } from "@/components/admin/ui";
+import { unwrap } from "@/lib/http";
 
 interface AdminCustomer {
   id: string;
@@ -19,12 +21,7 @@ export default function CustomersPage() {
 
   const customersQuery = useQuery({
     queryKey: ["admin-customers"],
-    queryFn: async (): Promise<AdminCustomer[]> => {
-      const res = await fetch("/api/admin/customers");
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || "Failed to load customers");
-      return body.data;
-    },
+    queryFn: () => unwrap<AdminCustomer[]>(axios.get("/api/admin/customers")),
   });
 
   const customers = customersQuery.data ?? [];

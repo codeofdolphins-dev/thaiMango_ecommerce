@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import {
   ChevronDown,
   ChevronLeft,
@@ -19,6 +20,7 @@ import {
 import { useStore } from "@/components/public/store";
 import { defaultVariant } from "@/lib/variants";
 import { PRODUCT_PLACEHOLDER, normalizeImagePath, productImage } from "@/lib/images";
+import { unwrap } from "@/lib/http";
 
 const PLACEHOLDER_IMAGE = PRODUCT_PLACEHOLDER;
 
@@ -60,14 +62,16 @@ interface ApiProduct {
   id: string;
   slug: string;
   name_en: string;
+  name_th: string;
   description_en: string;
+  description_th: string;
   images: string[];
   tags: string[];
   highlights: string[];
   how_its_made: string | null;
   storage_info: string | null;
   ingredients: string | null;
-  category: { slug: string; name_en: string };
+  category: { slug: string; name_en: string; name_th: string };
   productVariant: ApiVariant[];
   reviews: ApiReview[];
   ratingAverage: number | null;
@@ -79,10 +83,12 @@ interface RelatedProduct {
   id: string;
   slug: string;
   name_en: string;
+  name_th: string;
   description_en: string;
+  description_th: string;
   images: string[];
   highlights: string[];
-  category: { slug: string; name_en: string } | null;
+  category: { slug: string; name_en: string; name_th: string } | null;
   productVariant: ApiVariant[];
 }
 
@@ -210,16 +216,13 @@ export default function ProductDetailPage() {
     toggleWishlist,
     formatPrice,
     freeShippingThreshold,
+    localized,
   } = useStore();
 
   const productQuery = useQuery({
     queryKey: ["product", slug],
-    queryFn: async (): Promise<ApiProduct> => {
-      const res = await fetch(`/api/products/${slug}`);
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || "Product not found");
-      return body.data;
-    },
+    queryFn: async (): Promise<ApiProduct> =>
+      unwrap<ApiProduct>(axios.get(`/api/products/${slug}`)),
   });
 
   const product = productQuery.data;
@@ -438,7 +441,7 @@ export default function ProductDetailPage() {
     if (!product || !selectedVariant) return;
     addToCart({
       slug: product.slug,
-      name: product.name_en,
+      name: localized(product.name_en, product.name_th),
       price: Number(selectedVariant.price),
       image: images[mainImgIndex] ?? PLACEHOLDER_IMAGE,
       size: selectedVariant.label,
@@ -498,11 +501,11 @@ export default function ProductDetailPage() {
                 href={`/shop?category=${encodeURIComponent(product.category.slug)}`}
                 className="hover:text-charcoal transition"
               >
-                {product.category.name_en}
+                {localized(product.category.name_en, product.category.name_th)}
               </Link>
               <ChevronRight className="w-3.5 h-3.5" />
               <span className="text-charcoal font-semibold truncate max-w-xs">
-                {product.name_en}
+                {localized(product.name_en, product.name_th)}
               </span>
             </nav>
           </div>
@@ -527,7 +530,7 @@ export default function ProductDetailPage() {
                       id="main-product-img"
                       ref={mainImgRef}
                       src={images[mainImgIndex]}
-                      alt={product.name_en}
+                      alt={localized(product.name_en, product.name_th)}
                       className="w-full h-full object-cover select-none"
                       style={{ opacity: mainImgOpacity, transition: "opacity 0.15s ease" }}
                     />
@@ -604,10 +607,10 @@ export default function ProductDetailPage() {
                   <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent mb-2 block">
                     {product.highlights.length > 0
                       ? product.highlights.slice(0, 2).join(" • ")
-                      : product.category.name_en}
+                      : localized(product.category.name_en, product.category.name_th)}
                   </span>
                   <h1 className="font-serif text-3xl md:text-5xl text-charcoal mb-4 leading-tight">
-                    {product.name_en}
+                    {localized(product.name_en, product.name_th)}
                   </h1>
 
                   {/* Rating & Reviews */}
@@ -650,7 +653,7 @@ export default function ProductDetailPage() {
                 </div>
 
                 <p className="text-sm md:text-base text-muted leading-relaxed mb-8">
-                  {product.description_en}
+                  {localized(product.description_en, product.description_th)}
                 </p>
 
                 {/* Variant Selector */}
@@ -728,7 +731,12 @@ export default function ProductDetailPage() {
 
                   <button
                     type="button"
-                    onClick={() => toggleWishlist(product.slug, product.name_en)}
+                    onClick={() =>
+                      toggleWishlist(
+                        product.slug,
+                        localized(product.name_en, product.name_th)
+                      )
+                    }
                     className={`px-5 py-4 rounded-full border text-xs font-bold uppercase tracking-widest transition ${wishlisted
                         ? "border-rose-300 bg-rose-50 text-rose-600"
                         : "border-cream bg-white text-muted hover:border-charcoal hover:text-charcoal"
@@ -883,7 +891,7 @@ export default function ProductDetailPage() {
                       >
                         <img
                           src={rImage}
-                          alt={r.name_en}
+                          alt={localized(r.name_en, r.name_th)}
                           className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                         />
                         {r.highlights?.[0] && (
@@ -896,18 +904,21 @@ export default function ProductDetailPage() {
                       <div className="p-6 flex-1 flex flex-col justify-between">
                         <div>
                           <span className="text-[10px] tracking-widest uppercase font-bold text-accent mb-1.5 block">
-                            {rv?.label ?? r.category?.name_en ?? "Thai Mango"}
+                            {rv?.label ??
+                              (r.category
+                                ? localized(r.category.name_en, r.category.name_th)
+                                : "Thai Mango")}
                           </span>
                           <h3 className="font-serif text-xl text-charcoal mb-2 leading-snug">
                             <Link
                               href={`/product-detail/${r.slug}`}
                               className="hover:text-accent transition"
                             >
-                              {r.name_en}
+                              {localized(r.name_en, r.name_th)}
                             </Link>
                           </h3>
                           <p className="text-xs text-muted line-clamp-2 leading-relaxed mb-5">
-                            {r.description_en}
+                            {localized(r.description_en, r.description_th)}
                           </p>
                         </div>
 
@@ -929,7 +940,7 @@ export default function ProductDetailPage() {
                               if (!rv) return;
                               addToCart({
                                 slug: r.slug,
-                                name: r.name_en,
+                                name: localized(r.name_en, r.name_th),
                                 price: rPrice,
                                 image: rImage,
                                 size: rv.label,
@@ -1117,7 +1128,7 @@ export default function ProductDetailPage() {
               id="lightbox-img"
               ref={lightboxImgRef}
               src={images[galleryIndex]}
-              alt={product.name_en}
+              alt={localized(product.name_en, product.name_th)}
               onDoubleClick={handleLightboxDoubleClick}
               className="max-h-[75vh] max-w-[85vw] object-contain rounded-2xl shadow-2xl transition-transform duration-200"
             />

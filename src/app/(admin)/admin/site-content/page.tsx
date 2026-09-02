@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { Check, FileText, Pencil, X } from "lucide-react";
 import { Card, PageHeader } from "@/components/admin/ui";
+import { unwrap } from "@/lib/http";
 
 interface ContentBlock {
   id: string;
@@ -11,14 +13,6 @@ interface ContentBlock {
   location: string;
   content: string;
   updated_at: string;
-}
-
-async function throwOnError(res: Response) {
-  const body = await res.json();
-  if (!res.ok) {
-    throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-  }
-  return body.data;
 }
 
 export default function SiteContentPage() {
@@ -29,21 +23,12 @@ export default function SiteContentPage() {
 
   const blocksQuery = useQuery({
     queryKey: ["admin-site-content"],
-    queryFn: async (): Promise<ContentBlock[]> => {
-      const res = await fetch("/api/admin/site-content");
-      return throwOnError(res);
-    },
+    queryFn: () => unwrap<ContentBlock[]>(axios.get("/api/admin/site-content")),
   });
 
   const saveMutation = useMutation({
-    mutationFn: async ({ id, content }: { id: string; content: string }) => {
-      const res = await fetch(`/api/admin/site-content/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
-      });
-      return throwOnError(res);
-    },
+    mutationFn: ({ id, content }: { id: string; content: string }) =>
+      unwrap<unknown>(axios.patch(`/api/admin/site-content/${id}`, { content })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-site-content"] });
       setEditingId(null);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import axios from "axios";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -72,14 +73,20 @@ function InnerForm({
         return { ok: false, error: submitResult.error.message };
       }
 
-      const res = await fetch("/api/payments/stripe/intent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayloadRef.current()),
-      });
-      const data = await res.json().catch(() => null);
+      let data: { data?: { clientSecret?: string }; message?: string } | null =
+        null;
+      try {
+        const res = await axios.post(
+          "/api/payments/stripe/intent",
+          buildPayloadRef.current()
+        );
+        data = res.data ?? null;
+      } catch (error) {
+        if (!axios.isAxiosError(error) || !error.response) throw error;
+        data = (error.response.data as typeof data) ?? null;
+      }
       const clientSecret: string | undefined = data?.data?.clientSecret;
-      if (!res.ok || !clientSecret) {
+      if (!clientSecret) {
         return {
           ok: false,
           error: data?.message || "Could not start the card payment.",

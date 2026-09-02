@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { Search } from "lucide-react";
 import Select from "react-select";
 import { useMoney } from "@/components/admin/useMoney";
 import { Card, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { compactSelectStyles, SelectOption } from "@/components/admin/selectStyles";
+import { unwrap } from "@/lib/http";
 
 type OrderStatus = "PENDING" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
 
@@ -42,14 +44,6 @@ const TABS: (OrderStatus | "ALL")[] = [
   "CANCELLED",
 ];
 
-async function throwOnError(res: Response) {
-  const body = await res.json();
-  if (!res.ok) {
-    throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-  }
-  return body.data;
-}
-
 export default function OrdersPage() {
   const { format: money } = useMoney();
   const queryClient = useQueryClient();
@@ -59,21 +53,12 @@ export default function OrdersPage() {
 
   const ordersQuery = useQuery({
     queryKey: ["admin-orders"],
-    queryFn: async (): Promise<AdminOrder[]> => {
-      const res = await fetch("/api/admin/orders");
-      return throwOnError(res);
-    },
+    queryFn: () => unwrap<AdminOrder[]>(axios.get("/api/admin/orders")),
   });
 
   const statusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await fetch(`/api/admin/orders/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      return throwOnError(res);
-    },
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      unwrap<unknown>(axios.patch(`/api/admin/orders/${id}`, { status })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });

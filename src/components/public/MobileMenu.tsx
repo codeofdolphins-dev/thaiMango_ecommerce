@@ -22,8 +22,10 @@ import {
 import { InstagramIcon } from "./BrandIcons";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { menuPromoData, MenuTab } from "@/lib/site-data";
 import { useStore } from "./store";
+import { unwrap } from "@/lib/http";
 
 interface PromoContent {
   img: string;
@@ -37,6 +39,7 @@ interface PublicCategory {
   id: number;
   slug: string;
   name_en: string;
+  name_th: string;
 }
 
 /* Icon pool cycled across however many categories exist in the catalog */
@@ -111,6 +114,7 @@ export default function MobileMenu() {
     menuOrigin,
     lang,
     setLang,
+    localized,
     showToast,
     openSearch,
     settings,
@@ -121,27 +125,26 @@ export default function MobileMenu() {
 
   const categoriesQuery = useQuery({
     queryKey: ["categories"],
-    queryFn: async (): Promise<PublicCategory[]> => {
-      const res = await fetch("/api/categories");
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || "Failed to load categories");
-      return body.data;
-    },
+    queryFn: async (): Promise<PublicCategory[]> =>
+      unwrap<PublicCategory[]>(axios.get("/api/categories")),
     staleTime: 5 * 60 * 1000,
   });
 
-  const shopCategories = (categoriesQuery.data ?? []).map((c, i) => ({
-    name: c.name_en,
-    href: `/shop?category=${encodeURIComponent(c.slug)}`,
-    Icon: CATEGORY_ICONS[i % CATEGORY_ICONS.length],
-    promo: {
-      img: CATEGORY_PROMO_IMAGES[i % CATEGORY_PROMO_IMAGES.length],
-      tag: c.name_en,
-      title: `Explore our ${c.name_en} collection.`,
-      btn: `Shop ${c.name_en}`,
-      url: `/shop?category=${encodeURIComponent(c.slug)}`,
-    } satisfies PromoContent,
-  }));
+  const shopCategories = (categoriesQuery.data ?? []).map((c, i) => {
+    const name = localized(c.name_en, c.name_th);
+    return {
+      name,
+      href: `/shop?category=${encodeURIComponent(c.slug)}`,
+      Icon: CATEGORY_ICONS[i % CATEGORY_ICONS.length],
+      promo: {
+        img: CATEGORY_PROMO_IMAGES[i % CATEGORY_PROMO_IMAGES.length],
+        tag: name,
+        title: `Explore our ${name} collection.`,
+        btn: `Shop ${name}`,
+        url: `/shop?category=${encodeURIComponent(c.slug)}`,
+      } satisfies PromoContent,
+    };
+  });
 
   useEffect(() => {
     if (menuOpen) {
@@ -488,7 +491,7 @@ export default function MobileMenu() {
         <Link
           href={promo.url}
           className={linkCls(
-            "relative hidden xl:block w-[300px] 2xl:w-[340px] rounded-[28px] overflow-hidden group shrink-0 aspect-[4/5] shadow-xl self-center"
+            "relative hidden xl:block w-75 2xl:w-85 rounded-[28px] overflow-hidden group shrink-0 aspect-4/5 shadow-xl self-center"
           )}
           style={{ transitionDelay: "320ms" }}
           onClick={closeMenu}
@@ -498,7 +501,7 @@ export default function MobileMenu() {
             alt={promo.title}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
           <div className="absolute bottom-0 left-0 p-8 text-white">
             <span className="block text-[10px] tracking-widest uppercase text-[#F29F86] font-bold mb-2">
               {promo.tag}

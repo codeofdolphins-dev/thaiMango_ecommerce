@@ -4,11 +4,14 @@ import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import Select from "react-select";
 import type { z } from "zod";
 import { Card, PageHeader } from "@/components/admin/ui";
 import { adminSelectStyles, SelectOption } from "@/components/admin/selectStyles";
 import PhoneField from "@/components/common/PhoneField";
+import PasswordInput from "@/components/common/PasswordInput";
+import { apiMessage, unwrap } from "@/lib/http";
 import {
   settingsSchema,
   SettingsValues,
@@ -90,12 +93,7 @@ export default function SettingsPage() {
 
   const settingsQuery = useQuery({
     queryKey: ["admin-settings"],
-    queryFn: async (): Promise<SettingsValues> => {
-      const res = await fetch("/api/settings");
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || "Failed to load settings");
-      return body.data;
-    },
+    queryFn: () => unwrap<SettingsValues>(axios.get("/api/settings")),
   });
 
   const {
@@ -113,18 +111,8 @@ export default function SettingsPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (values: SettingsValues) => {
-      const res = await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-      }
-      return body.data;
-    },
+    mutationFn: (values: SettingsValues) =>
+      unwrap<unknown>(axios.put("/api/settings", values)),
     onSuccess: () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -162,16 +150,18 @@ export default function SettingsPage() {
               secret_key: values.stripe_secret_key,
             };
 
-      const res = await fetch("/api/admin/settings/test-gateway", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const res = await axios.post<{
+        data?: { ok?: boolean; message?: string };
+        message?: string;
+      }>("/api/admin/settings/test-gateway", payload, {
+        /* Mirror the old fetch flow — a non-2xx still carries the result body. */
+        validateStatus: () => true,
       });
-      const body = await res.json();
+      const body = res.data;
       setTestResults((prev) => ({
         ...prev,
         [gateway]: {
-          ok: Boolean(res.ok && body.data?.ok),
+          ok: Boolean(res.status >= 200 && res.status < 300 && body.data?.ok),
           message:
             body.data?.message || body.message || "Connection test failed.",
         },
@@ -210,15 +200,7 @@ export default function SettingsPage() {
               secret_key: values.stripe_secret_key,
             };
 
-      const res = await fetch("/api/admin/settings/gateways", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        throw new Error(body.errors?.[0] || body.message || "Save failed.");
-      }
+      await axios.patch("/api/admin/settings/gateways", payload);
 
       /* A freshly saved secret now lives server-side — swap the input to the
          mask so a later global Save Changes keeps it instead of resending. */
@@ -238,7 +220,7 @@ export default function SettingsPage() {
         ...prev,
         [gateway]: {
           ok: false,
-          message: error instanceof Error ? error.message : "Save failed.",
+          message: apiMessage(error, "Save failed."),
         },
       }));
     } finally {
@@ -563,8 +545,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <label className={labelCls}>Key Secret</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     className={inputCls}
                     placeholder="Enter to replace the saved secret"
                     autoComplete="new-password"
@@ -606,8 +587,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <label className={labelCls}>Secret Key</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     className={inputCls}
                     placeholder="Enter to replace the saved secret"
                     autoComplete="new-password"

@@ -9,6 +9,7 @@ import React, {
   useState,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import {
   AuthUser,
   Lang,
@@ -61,6 +62,9 @@ interface StoreValue {
   lang: Lang;
   setLang: (l: Lang) => void;
   t: (key: string, fallback?: string) => string;
+  /** Picks the Thai value of a bilingual DB field when the site is in Thai,
+   *  falling back to English when the Thai column is empty. */
+  localized: (en: string, th?: string | null) => string;
   /* toast */
   showToast: (message: string, type?: "info" | "heart") => void;
   /* cart */
@@ -167,10 +171,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const settingsQuery = useQuery({
     queryKey: ["public-settings"],
     queryFn: async () => {
-      const res = await fetch("/api/settings");
-      if (!res.ok) return null;
-      const body = await res.json();
-      return body.data as SettingsResponse;
+      try {
+        const res = await axios.get("/api/settings");
+        return res.data.data as SettingsResponse;
+      } catch {
+        return null;
+      }
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -198,17 +204,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const meQuery = useQuery({
     queryKey: ["me"],
     queryFn: async () => {
-      const res = await fetch("/api/me");
-      if (!res.ok) return null;
-      const body = await res.json();
-      return body.data as {
-        id: string;
-        name: string;
-        email: string;
-        phone: string;
-        flavor_preference: string[];
-        created_at: string;
-      };
+      try {
+        const res = await axios.get("/api/me");
+        return res.data.data as {
+          id: string;
+          name: string;
+          email: string;
+          phone: string;
+          flavor_preference: string[];
+          created_at: string;
+        };
+      } catch {
+        return null;
+      }
     },
     retry: false,
     staleTime: Infinity,
@@ -245,11 +253,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/products?limit=100");
-        if (!res.ok) return;
-        const body = await res.json();
+        const res = await axios.get("/api/products?limit=100");
         const bySlug = new Map<string, string>(
-          (body.data?.products ?? []).map(
+          (res.data.data?.products ?? []).map(
             (p: { slug: string; name_en: string }) => [p.name_en, p.slug]
           )
         );
@@ -303,6 +309,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const t = useCallback(
     (key: string, fallback?: string) =>
       translations[lang][key] ?? translations.en[key] ?? fallback ?? key,
+    [lang]
+  );
+
+  const localized = useCallback(
+    (en: string, th?: string | null) =>
+      lang === "th" && th && th.trim() ? th : en,
     [lang]
   );
 
@@ -423,7 +435,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await fetch("/api/logout", { method: "POST" });
+      await axios.post("/api/logout");
     } catch {}
     setUserState(null);
     showToast("Signed out of your account");
@@ -468,6 +480,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         lang,
         setLang,
         t,
+        localized,
         showToast,
         cart,
         addToCart,
@@ -533,7 +546,7 @@ function ToastItem({ toast }: { toast: Toast }) {
   const visible = entered && !toast.leaving;
   return (
     <div
-      className={`bg-[#241016] text-[#FBF4E8] text-xs md:text-sm font-medium px-5 py-3 rounded-full shadow-2xl pointer-events-auto border border-[#E5B869]/30 transition-all duration-300 transform flex items-center gap-2.5 ${
+      className={`bg-[#241016] text-[#FBF4E8] text-xs md:text-sm font-medium px-5 py-3 rounded-full shadow-2xl pointer-events-auto border border-gold/30 transition-all duration-300 transform flex items-center gap-2.5 ${
         visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
       }`}
     >
@@ -546,7 +559,7 @@ function ToastItem({ toast }: { toast: Toast }) {
               </svg>
             ) : (
               <svg
-                className="w-4 h-4 text-[#E5B869] shrink-0"
+                className="w-4 h-4 text-gold shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

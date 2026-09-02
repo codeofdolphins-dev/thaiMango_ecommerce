@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { ChevronLeft, ExternalLink } from "lucide-react";
 import Select from "react-select";
 import { Card, PageHeader } from "@/components/admin/ui";
 import ImageUploader from "@/components/admin/ImageUploader";
 import { adminSelectStyles, SelectOption } from "@/components/admin/selectStyles";
+import { unwrap } from "@/lib/http";
 import VariantsEditor, { VariantFormRow } from "@/components/admin/VariantsEditor";
 import { productSchema } from "@/schemas/product.schema";
 
@@ -92,22 +94,13 @@ export default function EditProductPage() {
 
   const productQuery = useQuery({
     queryKey: ["admin-product", productId],
-    queryFn: async (): Promise<AdminProduct> => {
-      const res = await fetch(`/api/admin/products/${productId}`);
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || "Failed to load product");
-      return body.data;
-    },
+    queryFn: () =>
+      unwrap<AdminProduct>(axios.get(`/api/admin/products/${productId}`)),
   });
 
   const categoriesQuery = useQuery({
     queryKey: ["admin-categories"],
-    queryFn: async (): Promise<AdminCategory[]> => {
-      const res = await fetch("/api/admin/categories");
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || "Failed to load categories");
-      return body.data;
-    },
+    queryFn: () => unwrap<AdminCategory[]>(axios.get("/api/admin/categories")),
   });
 
   const {
@@ -151,18 +144,8 @@ export default function EditProductPage() {
   }, [productQuery.data, reset]);
 
   const updateMutation = useMutation({
-    mutationFn: async (payload: unknown) => {
-      const res = await fetch(`/api/admin/products/${productId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        throw new Error(body.errors?.[0] || body.message || "Something went wrong");
-      }
-      return body.data;
-    },
+    mutationFn: (payload: unknown) =>
+      unwrap<unknown>(axios.patch(`/api/admin/products/${productId}`, payload)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-product", productId] });
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
