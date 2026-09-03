@@ -91,14 +91,14 @@ export const translations: Record<Lang, Record<string, string>> = {
 
 export const menuPromoData = {
   shop: {
-    img: "/images/bangkok-mango-beetroot-2.png",
+    img: "/images/products/bangkok-mango-chili-lime.png",
     tag: "New Arrivals",
     title: "Discover our newest mango creations.",
     btn: "Shop Now",
     url: "/shop",
   },
   guides: {
-    img: "/images/menu-guides-promo.jpg",
+    img: "/images/products/bangkok-mango-beetroot.png",
     tag: "Mango Stories & Ideas",
     title: "Discover our heritage, ingredients, and serving inspiration.",
     btn: "Explore Stories",

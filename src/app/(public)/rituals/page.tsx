@@ -69,7 +69,7 @@ export default function RitualsPage() {
             </Link>
           </div>
           <div className="relative rounded-[32px] overflow-hidden aspect-[4/3] bg-cream shadow-lg">
-            <img src="/images/bangkok-mango-beetroot-2.png" alt="Thai Mango served with tea and sticky rice" className="w-full h-full object-cover" />
+            <img src="/images/products/bangkok-mango-beetroot.png" alt="Thai Mango served with tea and sticky rice" className="w-full h-full object-cover" />
           </div>
         </div>
       </section>

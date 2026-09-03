@@ -26,8 +26,8 @@ const CATEGORY_DEFAULTS = [
    Thai copy has no source anywhere in the design: only UI chrome and category
    names are translated, so `name_th` / `description_th` below are new and want
    a native speaker's review. */
-const IMG_1 = "/images/products/bangkok-mango-beetroot-1.png";
-const IMG_2 = "/images/products/bangkok-mango-beetroot-2.png";
+const IMG_1 = "/images/products/bangkok-mango-beetroot.png";
+const IMG_2 = "/images/products/bangkok-mango-chili-lime.png";
 
 const STORAGE_INFO =
     "Keep in a cool, dry place away from direct sunlight. The resealable pouch locks in freshness after opening — best enjoyed within 2 weeks. Unopened, it stays fresh for up to 12 months from the pack date.";

@@ -16,7 +16,7 @@ export default function AboutPage() {
       <section className="py-16 md:py-24 bg-ivory">
         <div className="max-w-screen-2xl mx-auto px-6 md:px-12 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           <div className="relative rounded-[32px] overflow-hidden aspect-[4/3] bg-cream shadow-xl">
-            <img src="/images/bangkok-mango-beetroot-1.png" alt="Origins" className="w-full h-full object-cover" />
+            <img src="/images/products/bangkok-mango-beetroot.png" alt="Origins" className="w-full h-full object-cover" />
           </div>
           <div>
             <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent mb-3 block">Chapter 01</span>
@@ -52,7 +52,7 @@ export default function AboutPage() {
             </div>
           </div>
           <div className="order-1 lg:order-2 relative rounded-[32px] overflow-hidden aspect-[4/3] bg-cream shadow-xl">
-            <img src="/images/bangkok-mango-beetroot-2.png" alt="Philosophy" className="w-full h-full object-cover" />
+            <img src="/images/products/bangkok-mango-beetroot.png" alt="Philosophy" className="w-full h-full object-cover" />
           </div>
         </div>
       </section>

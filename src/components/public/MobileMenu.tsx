@@ -46,8 +46,8 @@ interface PublicCategory {
 const CATEGORY_ICONS = [Sun, Flame, Droplet, Sparkles, Gift];
 
 const CATEGORY_PROMO_IMAGES = [
-  "/images/bangkok-mango-beetroot-1.png",
-  "/images/bangkok-mango-beetroot-2.png",
+  "/images/products/bangkok-mango-chili-lime.png",
+  "/images/products/bangkok-mango-beetroot.png",
 ];
 
 const subitemPromoData: Record<string, PromoContent> = {
@@ -87,14 +87,14 @@ const subitemPromoData: Record<string, PromoContent> = {
     url: "/contact",
   },
   "/faq": {
-    img: "/images/products/bangkok-mango-original.jpeg",
+    img: "/images/products/bangkok-mango-beetroot.png",
     tag: "Mango FAQs",
     title: "Answers about our products, storage, and ordering.",
     btn: "Browse FAQs",
     url: "/faq",
   },
   "/shipping-policy": {
-    img: "/images/products/bangkok-mango-original.jpeg",
+    img: "/images/products/bangkok-mango-chili-lime.png",
     tag: "Delivery Information",
     title: "Everything you need to know about shipping your order.",
     btn: "Learn Policies",

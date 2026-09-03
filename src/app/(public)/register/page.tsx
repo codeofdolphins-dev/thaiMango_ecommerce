@@ -80,7 +80,7 @@ export default function RegisterPage() {
         <div className="lg:col-span-5 relative bg-[#52091E] text-white p-8 md:p-12 flex flex-col justify-between overflow-hidden">
           {/* Backdrop glow & imagery */}
           <img
-            src="/images/bangkok-mango-beetroot-1.png"
+            src="/images/products/bangkok-mango-beetroot.png"
             alt="Thai Mango Membership"
             className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay"
           />

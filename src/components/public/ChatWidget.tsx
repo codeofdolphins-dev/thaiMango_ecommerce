@@ -105,14 +105,14 @@ export default function ChatWidget() {
             <span className="flex -space-x-2 shrink-0">
               <span className="w-8 h-8 rounded-full border-2 border-ivory overflow-hidden">
                 <img
-                  src="/images/bangkok-mango-beetroot-1.png"
+                  src="/images/products/bangkok-mango-beetroot.png"
                   className="w-full h-full object-cover"
                   alt=""
                 />
               </span>
               <span className="w-8 h-8 rounded-full border-2 border-ivory overflow-hidden">
                 <img
-                  src="/images/bangkok-mango-beetroot-2.png"
+                  src="/images/products/bangkok-mango-chili-lime.png"
                   className="w-full h-full object-cover"
                   alt=""
                 />
