@@ -203,7 +203,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row items-start justify-start gap-4">
               <Link
                 href="/shop"
-                className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-3.5 bg-[#F29F86] text-white text-[10px] md:text-xs tracking-widest uppercase hover:bg-white hover:text-charcoal transition duration-300 rounded-full font-bold"
+                className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-3.5 bg-beetroot border border-gold/40 text-white text-[10px] md:text-xs tracking-widest uppercase hover:bg-gold hover:text-charcoal hover:border-gold transition duration-300 rounded-full font-bold shadow-lg"
               >
                 <span>{t("shop_products")}</span>
                 <ArrowRight className="w-4 h-4 ml-3" />

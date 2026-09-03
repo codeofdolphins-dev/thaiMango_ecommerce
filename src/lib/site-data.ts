@@ -99,16 +99,16 @@ export const menuPromoData = {
   },
   guides: {
     img: "/images/menu-guides-promo.jpg",
-    tag: "Rituals & Journal",
-    title: "Explore mindful wellness & herbal recipes.",
-    btn: "Read Journal",
+    tag: "Mango Stories & Ideas",
+    title: "Discover our heritage, ingredients, and serving inspiration.",
+    btn: "Explore Stories",
     url: "/rituals",
   },
-  consultations: {
-    img: "/images/menu-consult-promo.jpg",
-    tag: "Skin & Health Experts",
-    title: "Personalized skin advice tailored for you.",
-    btn: "Book Consultation",
+  customerCare: {
+    img: "/images/products/bangkok-mango-original.jpeg",
+    tag: "Customer Care",
+    title: "Help with mango products, orders, and delivery.",
+    btn: "Contact Us",
     url: "/contact",
   },
 } as const;

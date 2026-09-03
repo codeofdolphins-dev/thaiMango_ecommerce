@@ -61,51 +61,51 @@ const subitemPromoData: Record<string, PromoContent> = {
   "/about": {
     img: "/images/menu-guides-promo.jpg",
     tag: "Our Heritage",
-    title: "Honoring Thai tradition with pure botanical craft.",
+    title: "Honoring Thai orchard tradition through mango craft.",
     btn: "Discover Story",
     url: "/about",
   },
   "/rituals": {
     img: "/images/menu-guides-promo.jpg",
-    tag: "Daily Rituals",
-    title: "Explore mindful wellness & herbal recipes.",
-    btn: "View Rituals",
+    tag: "Mango Inspiration",
+    title: "Discover serving ideas, pairings, and mango stories.",
+    btn: "Explore Ideas",
     url: "/rituals",
   },
   "/ingredients": {
     img: "/images/menu-guides-promo.jpg",
-    tag: "Pure Ingredients",
-    title: "Sustainably harvested Thai mango & herbs.",
+    tag: "Our Ingredients",
+    title: "Explore Thai mangoes, spices, and natural flavors.",
     btn: "Explore Ingredients",
     url: "/ingredients",
   },
   "/contact": {
-    img: "/images/menu-consult-promo.jpg",
-    tag: "Expert Consultations",
-    title: "One-on-one personalized herbal consultation.",
+    img: "/images/products/bangkok-mango-original.jpeg",
+    tag: "Customer Support",
+    title: "Questions about your order or our mango products?",
     btn: "Contact Us",
     url: "/contact",
   },
   "/faq": {
-    img: "/images/menu-consult-promo.jpg",
-    tag: "Advice & FAQs",
-    title: "Answers to your ritual & wellness questions.",
+    img: "/images/products/bangkok-mango-original.jpeg",
+    tag: "Mango FAQs",
+    title: "Answers about our products, storage, and ordering.",
     btn: "Browse FAQs",
     url: "/faq",
   },
   "/shipping-policy": {
-    img: "/images/menu-consult-promo.jpg",
-    tag: "Shipping & Policies",
-    title: "Worldwide express shipping & guarantee.",
+    img: "/images/products/bangkok-mango-original.jpeg",
+    tag: "Delivery Information",
+    title: "Everything you need to know about shipping your order.",
     btn: "Learn Policies",
     url: "/shipping-policy",
   },
 };
 
 const subIconBox =
-  "w-12 h-12 rounded-2xl bg-white border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-center text-[#F29F86] group-hover:border-[#F29F86]/50 group-hover:shadow-[0_4px_16px_rgba(242,159,134,0.18)] transition-all shrink-0";
+  "w-12 h-12 rounded-2xl bg-white border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-center text-beetroot group-hover:border-gold group-hover:shadow-[0_4px_16px_rgba(100,12,38,0.14)] transition-all shrink-0";
 const subLabel =
-  "text-xs md:text-sm font-bold tracking-widest text-[#334155] uppercase font-sans group-hover:text-[#F29F86] transition-colors";
+  "text-xs md:text-sm font-bold tracking-widest text-[#334155] uppercase font-sans group-hover:text-beetroot transition-colors";
 
 export default function MobileMenu() {
   const {
@@ -184,7 +184,7 @@ export default function MobileMenu() {
       linksActive ? "menu-link active" : "menu-link"
     } group relative p-5 md:p-6 rounded-[24px] ${
       isActive
-        ? "bg-[#FFF5F2] border border-[#FADCD1] shadow-[0_4px_24px_rgba(242,159,134,0.12)]"
+        ? "bg-[#FFF9F0] border border-gold/60 shadow-[0_4px_24px_rgba(100,12,38,0.10)]"
         : "bg-transparent border border-transparent hover:bg-white/60 hover:border-stone-200/60"
     } cursor-pointer transition-all duration-300 flex items-center justify-between`;
   };
@@ -192,20 +192,20 @@ export default function MobileMenu() {
   const navTitle = (tab: MenuTab) =>
     `menu-card-title text-base sm:text-lg font-bold tracking-wider ${
       activeTab === tab
-        ? "text-[#F29F86]"
-        : "text-[#334155] group-hover:text-[#F29F86]"
+        ? "text-beetroot"
+        : "text-[#334155] group-hover:text-beetroot"
     } uppercase font-sans transition-colors`;
 
   const navSub = (tab: MenuTab) =>
     `menu-card-sub text-[10px] sm:text-[11px] font-semibold tracking-widest ${
-      activeTab === tab ? "text-[#F7A38B]" : "text-[#94A3B8]"
+      activeTab === tab ? "text-[#8C2442]" : "text-[#94A3B8]"
     } uppercase mt-1 transition-colors`;
 
   const navBtn = (tab: MenuTab) =>
     `menu-card-btn w-10 h-10 rounded-full ${
       activeTab === tab
-        ? "bg-[#F29F86] text-white shadow-sm group-hover:scale-105"
-        : "border border-slate-200 bg-white/80 text-slate-400 group-hover:text-white group-hover:bg-[#F29F86] group-hover:border-[#F29F86]"
+        ? "bg-beetroot border border-gold/60 text-white shadow-sm group-hover:bg-gold group-hover:text-charcoal group-hover:scale-105"
+        : "border border-slate-200 bg-white/80 text-slate-400 group-hover:text-white group-hover:bg-beetroot group-hover:border-gold"
     } flex items-center justify-center transition-all duration-200 shrink-0`;
 
   return (
@@ -309,20 +309,20 @@ export default function MobileMenu() {
             </Link>
           </div>
 
-          {/* 3. Consultations */}
+          {/* 3. Customer Care */}
           <div
-            className={navCard("consultations")}
+            className={navCard("customerCare")}
             style={{ transitionDelay: "180ms" }}
-            onClick={() => switchTab("consultations")}
+            onClick={() => switchTab("customerCare")}
           >
             <div className="pr-3">
-              <h3 className={navTitle("consultations")}>CONSULTATIONS</h3>
-              <p className={navSub("consultations")}>HEALTH &amp; SKIN EXPERTS</p>
+              <h3 className={navTitle("customerCare")}>CUSTOMER CARE</h3>
+              <p className={navSub("customerCare")}>ORDERS, SHIPPING &amp; SUPPORT</p>
             </div>
             <Link
               href="/contact"
-              className={navBtn("consultations")}
-              aria-label="Consultations"
+              className={navBtn("customerCare")}
+              aria-label="Customer Care"
               onClick={closeMenu}
             >
               <ChevronRight className="w-5 h-5" />
@@ -438,11 +438,11 @@ export default function MobileMenu() {
             </Link>
           </div>
 
-          {/* Tab Panel 3: Consultations Sub-items */}
+          {/* Tab Panel 3: Customer Care Sub-items */}
           <div
-            id="subpanel-consultations"
+            id="subpanel-customer-care"
             className={`menu-subpanel ${
-              activeTab === "consultations" ? "flex" : "hidden"
+              activeTab === "customerCare" ? "flex" : "hidden"
             } flex-col gap-5 md:gap-6`}
           >
             <Link
