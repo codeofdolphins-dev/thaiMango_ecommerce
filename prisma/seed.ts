@@ -15,19 +15,39 @@ const CATEGORY_DEFAULTS = [
     { slug: "gift-sets", name_en: "Gift Sets", name_th: "ชุดของขวัญ" },
 ];
 
-/* Products transcribed from the approved static design in `resources/`.
-   shop.html is the source of truth: it is the only page carrying all six
-   products with their ids, categories and prices (index.html shows different
-   prices for two of them, product-detail.html covers only the beetroot chews).
-   `images/` ships just two product photos, so — as in the reference — several
-   products share one. Files live in public/images/products/, served by us.
-   `how_its_made` / `storage_info` / `ingredients` exist verbatim only for the
-   beetroot chews; the rest are derived from each product's own description.
-   Thai copy has no source anywhere in the design: only UI chrome and category
-   names are translated, so `name_th` / `description_th` below are new and want
-   a native speaker's review. */
-const IMG_1 = "/images/products/bangkok-mango-beetroot.png";
-const IMG_2 = "/images/products/bangkok-mango-chili-lime.png";
+
+const beetroot = "/images/products/bangkok-mango-beetroot.png";
+const beetroot_front = "/images/products/bangkok-mango-beetroot-front.png";
+
+const chiliLime = "/images/products/bangkok-mango-chili-lime.png";
+const chiliLime_front = "/images/products/bangkok-mango-chili-lime-front.png";
+
+const chiliSalt = "/images/products/bangkok-mango-chili-salt.png";
+const chiliSalt_front = "/images/products/bangkok-mango-chili-salt-front.png";
+
+const ginger = "/images/products/bangkok-mango-Ginger.png";
+const ginger_front = "/images/products/bangkok-mango-Ginger-front.png";
+
+const lychee = "/images/products/bangkok-mango-Lychee.png";
+const lychee_front = "/images/products/bangkok-mango-Lychee-front.png";
+
+const original = "/images/products/bangkok-mango-original.png";
+const original_front = "/images/products/bangkok-mango-original-front.png";
+
+const passion = "/images/products/bangkok-mango-passion.png";
+const passion_front = "/images/products/bangkok-mango-passion-front.png";
+
+const plum = "/images/products/bangkok-mango-plum.png";
+const plum_front = "/images/products/bangkok-mango-plum-front.png";
+
+const roselle = "/images/products/bangkok-mango-Roselle.png";
+const roselle_front = "/images/products/bangkok-mango-Roselle-front.png";
+
+const strawberry = "/images/products/bangkok-mango-strawberry.png";
+const strawberry_front = "/images/products/bangkok-mango-strawberry-front.png";
+
+const turmeric = "/images/products/bangkok-mango-Turmeric.png";
+const turmeric_front = "/images/products/bangkok-mango-Turmeric-front.png";
 
 const STORAGE_INFO =
     "Keep in a cool, dry place away from direct sunlight. The resealable pouch locks in freshness after opening — best enjoyed within 2 weeks. Unopened, it stays fresh for up to 12 months from the pack date.";
@@ -67,7 +87,7 @@ const PRODUCT_DEFAULTS: SeedProduct[] = [
             "Naturally sun-dried Thai mango strips with no sugar added — just soft, chewy, sun-ripened sweetness.",
         description_th:
             "มะม่วงไทยตากแดดแบบธรรมชาติ ไม่เติมน้ำตาล นุ่ม หนึบ หวานจากผลสุกธรรมชาติ",
-        images: [IMG_1, IMG_2],
+        images: [beetroot, beetroot_front],
         tags: ["classic", "mango", "natural", "no sugar added", "chewy"],
         highlights: ["Best Seller", "No Sugar Added", "100% Natural"],
         how_its_made:
@@ -95,7 +115,7 @@ const PRODUCT_DEFAULTS: SeedProduct[] = [
             "Sun-dried mango tossed in Thai chili and lime for a bold sweet-sour-spicy kick in every bite.",
         description_th:
             "มะม่วงอบแห้งคลุกพริกไทยและมะนาว ให้รสหวาน เปรี้ยว เผ็ดจี๊ดจ๊าดในคำเดียว",
-        images: [IMG_1, IMG_2],
+        images: [chiliLime, chiliLime_front],
         tags: ["chili", "lime", "spicy", "zesty", "mango"],
         highlights: ["Sweet, Sour & Spicy", "100% Natural"],
         how_its_made:
@@ -123,7 +143,7 @@ const PRODUCT_DEFAULTS: SeedProduct[] = [
             "Soft, glossy mango slices finished with a wildflower honey glaze for an extra-indulgent bite.",
         description_th:
             "มะม่วงอบแห้งเนื้อนุ่ม เคลือบน้ำผึ้งดอกไม้ป่า ให้รสหวานละมุนเป็นพิเศษ",
-        images: [IMG_2, IMG_1],
+        images: [chiliSalt, chiliSalt_front],
         tags: ["honey", "glazed", "sweet", "soft", "mango"],
         highlights: ["Wildflower Honey", "Naturally Sweet"],
         how_its_made:
@@ -151,7 +171,7 @@ const PRODUCT_DEFAULTS: SeedProduct[] = [
             "Thai Mango Beetroot Fusion Chews pair naturally sun-dried Thai mango with real beetroot for a vibrant, earthy-sweet chew. Slow sun-dried the traditional way and infused with beetroot for color and antioxidants, with no added preservatives — just fruit, sunshine, and time.",
         description_th:
             "มะม่วงไทยตากแดดผสานบีทรูทแท้ ให้สีสันสดใส รสหวานอมดินอ่อน ๆ และสารต้านอนุมูลอิสระ ไม่ใส่วัตถุกันเสีย",
-        images: [IMG_1, IMG_2],
+        images: [ginger, ginger_front],
         tags: ["beetroot", "fusion", "antioxidant", "mango", "chewy"],
         highlights: ["100% Natural", "No Preservatives", "Naturally Sweet", "Product of Thailand"],
         how_its_made:
@@ -187,7 +207,7 @@ const PRODUCT_DEFAULTS: SeedProduct[] = [
             "Can't decide? This variety box bundles all four Thai Mango flavors in one beautifully packaged gift set.",
         description_th:
             "เลือกไม่ถูกใช่ไหม? กล่องนี้รวมมะม่วงอบแห้งครบทั้งสี่รสชาติในชุดของขวัญสุดพิเศษ",
-        images: [IMG_1, IMG_2],
+        images: [lychee, lychee_front],
         tags: ["gift", "box", "variety", "mango", "bundle"],
         highlights: ["All 4 Flavors", "Gift Box"],
         storage_info: STORAGE_INFO,
@@ -213,7 +233,7 @@ const PRODUCT_DEFAULTS: SeedProduct[] = [
             "Our Classic Sun-Dried Strips paired with Chili Lime Bites in one gift-ready duo pack.",
         description_th:
             "มะม่วงอบแห้งคลาสสิกคู่กับรสพริกมะนาว ในชุดของขวัญพร้อมมอบให้คนพิเศษ",
-        images: [IMG_2, IMG_1],
+        images: [original, original_front],
         tags: ["gift", "duo", "bundle", "mango", "set"],
         highlights: ["Gift Box", "Two Flavors"],
         storage_info: STORAGE_INFO,
