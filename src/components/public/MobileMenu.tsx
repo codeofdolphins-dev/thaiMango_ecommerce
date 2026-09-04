@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   BookOpen,
+  Brain,
   ChevronRight,
   Droplet,
   Flame,
@@ -13,7 +14,6 @@ import {
   Leaf,
   MessageCircle,
   Search,
-  Sparkles,
   Sun,
   Truck,
   User,
@@ -43,7 +43,7 @@ interface PublicCategory {
 }
 
 /* Icon pool cycled across however many categories exist in the catalog */
-const CATEGORY_ICONS = [Sun, Flame, Droplet, Sparkles, Gift];
+const CATEGORY_ICONS = [Sun, Flame, Droplet, Brain, Gift];
 
 const CATEGORY_PROMO_IMAGES = [
   "/images/products/bangkok-mango-chili-lime.png",
@@ -52,7 +52,7 @@ const CATEGORY_PROMO_IMAGES = [
 
 const subitemPromoData: Record<string, PromoContent> = {
   "/shop": {
-    img: "/images/bangkok-mango-beetroot-2.png",
+    img: "/images/all_products.jpeg",
     tag: "All Products",
     title: "Discover our newest mango creations.",
     btn: "Shop All",
@@ -80,21 +80,21 @@ const subitemPromoData: Record<string, PromoContent> = {
     url: "/ingredients",
   },
   "/contact": {
-    img: "/images/products/bangkok-mango-original.jpeg",
+    img: "/images/menu-consult-promo.jpg",
     tag: "Customer Support",
     title: "Questions about your order or our mango products?",
     btn: "Contact Us",
     url: "/contact",
   },
   "/faq": {
-    img: "/images/products/bangkok-mango-beetroot.png",
+    img: "/images/menu-consult-promo.jpg",
     tag: "Mango FAQs",
     title: "Answers about our products, storage, and ordering.",
     btn: "Browse FAQs",
     url: "/faq",
   },
   "/shipping-policy": {
-    img: "/images/products/bangkok-mango-chili-lime.png",
+    img: "/images/menu-consult-promo.jpg",
     tag: "Delivery Information",
     title: "Everything you need to know about shipping your order.",
     btn: "Learn Policies",
@@ -418,7 +418,7 @@ export default function MobileMenu() {
             >
               <span className="contents">
                 <span className={subIconBox}>
-                  <Sparkles className="w-5 h-5" />
+                  <Flame className="w-5 h-5" />
                 </span>
                 <span className={subLabel}>RITUALS &amp; JOURNAL</span>
               </span>
