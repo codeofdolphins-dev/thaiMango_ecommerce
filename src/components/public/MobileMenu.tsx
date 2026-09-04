@@ -503,13 +503,13 @@ export default function MobileMenu() {
           />
           <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
           <div className="absolute bottom-0 left-0 p-8 text-white">
-            <span className="block text-[10px] tracking-widest uppercase text-[#F29F86] font-bold mb-2">
+            <span className="block text-[14px] uppercase text-gold font-bold mb-2">
               {promo.tag}
             </span>
-            <h3 className="font-serif text-2xl xl:text-3xl mb-4 leading-snug">
+            <h3 className="text-xl xl:text-xl">
               {promo.title}
             </h3>
-            <span className="inline-flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-white group-hover:text-[#F29F86] transition">
+            <span className="inline-flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-white group-hover:text-gold transition">
               {promo.btn}
               <ArrowRight className="w-3.5 h-3.5" />
             </span>
